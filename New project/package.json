@@ -1,0 +1,5 @@
+{
+  "name": "ai-bloom-study-platform",
+  "private": true,
+  "scripts": { "start": "node server.js", "test": "node --test" }
+}
