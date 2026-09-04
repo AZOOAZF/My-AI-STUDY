@@ -16,6 +16,7 @@ function normalize(d, seedTasks) {
   d.orders ??= {};
   d.paymentEvents ??= {};
   d.emailJobs ??= [];
+  d.authCodes ??= {};
   d.tasks = d.tasks?.length ? d.tasks : seedTasks();
   return d;
 }
