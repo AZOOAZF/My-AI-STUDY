@@ -1,5 +1,6 @@
 {
   "name": "ai-bloom-study-platform",
   "private": true,
-  "scripts": { "start": "node server.js", "test": "node --test" }
+  "scripts": { "start": "node server.js", "test": "node --test" },
+  "dependencies": { "serverless-http": "^3.2.0" }
 }
