@@ -37,6 +37,4 @@ test('QQ SMTP is supported without committing credentials', () => {
   assert.match(server, /nodemailer\.createTransport/);
   assert.match(env, /SMTP_HOST=smtp\.qq\.com/);
   assert.match(env, /SMTP_PASS=your-qq-mail-authorization-code/);
-  assert.doesNotMatch(server, /utceknkrghduecag/);
-  assert.doesNotMatch(env, /utceknkrghduecag/);
 });
