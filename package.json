@@ -1,0 +1,10 @@
+{
+  "name": "ai-bloom-study-vercel",
+  "private": true,
+  "scripts": {
+    "build": "npm --prefix \"New project\" run build"
+  },
+  "dependencies": {
+    "nodemailer": "^10.0.0"
+  }
+}
