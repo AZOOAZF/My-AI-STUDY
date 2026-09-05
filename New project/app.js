@@ -10,6 +10,7 @@
   var authMode = 'login';
   var authMethod = 'code';
   var passwordPromptSkipped = false;
+  var passwordReturnToProfile = false;
 
   function esc(x) {
     return String(x == null ? '' : x).replace(/[&<>"']/g, function (c) {
@@ -119,8 +120,9 @@
     return '<tr><td><span class="day-badge">第 ' + task.day + ' 天</span><div class="task-meta">第 ' + task.week + ' 周</div></td><td>' + esc(task.module) + '</td><td><strong>' + esc(task.title) + '</strong><div class="task-meta">' + esc(task.description) + '</div>' + (task.practice ? '<div class="lesson-box"><b>实操：</b>' + esc(task.practice) + '</div>' : '') + (task.question ? '<div class="quiz-box"><b>检测题：</b>' + esc(task.question) + '<br><button class="quiz-btn" onclick="this.nextElementSibling.classList.toggle(\'show\')">查看参考答案</button><span class="quiz-answer">' + esc(task.answer) + '</span></div>' : '') + '<a href="' + esc(task.resource) + '" target="_blank" rel="noopener">打开课程入口 ↗</a></td><td>' + esc(task.minutes) + ' 分钟</td><td class="' + (record.done ? 'status-done' : 'muted') + '">' + (record.done ? '已完成 ✓' : '待打卡') + '</td><td><button class="btn ' + (record.done ? 'ghost' : 'secondary') + '" onclick="toggle(' + task.day + ')">' + (record.done ? '撤销' : '完成') + '</button></td></tr>';
   }
 
-  function passwordSetupPage() {
-    app.innerHTML = '<main class="main onboarding"><div class="onboarding-head"><div class="brand">AI <b>BLOOM</b></div><div class="eyebrow">ACCOUNT SECURITY</div><h1>设置登录密码</h1><p class="muted">设置后，下次可以直接用邮箱和密码登录；忘记密码时仍可用邮箱验证码重设。</p></div><section class="card password-card"><div class="field"><label>新密码</label><input id="newPassword" type="password" autocomplete="new-password" placeholder="至少 8 位，包含字母和数字"></div><div class="field"><label>再次输入</label><input id="confirmPassword" type="password" autocomplete="new-password" placeholder="再次输入密码"></div><div id="passwordMsg" class="form-error"></div><div class="save-row"><button class="btn ghost" onclick="skipPassword()">暂时使用验证码</button><button class="btn" onclick="savePassword()">保存密码</button></div></section></main>';
+  function passwordSetupPage(returnToProfile) {
+    passwordReturnToProfile = !!returnToProfile;
+    app.innerHTML = '<main class="main onboarding"><div class="onboarding-head"><div class="brand">AI <b>BLOOM</b></div><div class="eyebrow">ACCOUNT SECURITY</div><h1>' + (passwordReturnToProfile ? '修改登录密码' : '设置登录密码') + '</h1><p class="muted">设置后，下次可以直接用邮箱和密码登录；忘记密码时可用邮箱验证码登录后在“我的”里重设。</p></div><section class="card password-card"><div class="field"><label>新密码</label><input id="newPassword" type="password" autocomplete="new-password" placeholder="至少 8 位，包含字母和数字"></div><div class="field"><label>再次输入</label><input id="confirmPassword" type="password" autocomplete="new-password" placeholder="再次输入密码"></div><div id="passwordMsg" class="form-error"></div><div class="save-row"><button class="btn ghost" onclick="skipPassword()">' + (passwordReturnToProfile ? '返回我的' : '暂时使用验证码') + '</button><button class="btn" onclick="savePassword()">保存密码</button></div></section></main>';
   }
 
   function savePassword() {
@@ -131,11 +133,11 @@
       passwordPromptSkipped = false;
       message.style.color = 'var(--green)';
       message.textContent = '密码已保存';
-      setTimeout(function () { render(); }, 250);
+      setTimeout(function () { if (passwordReturnToProfile) { tab = '我的'; render(); } else render(); }, 250);
     }).catch(function (e) { message.textContent = e.message; });
   }
 
-  function skipPassword() { passwordPromptSkipped = true; render(); }
+  function skipPassword() { if (passwordReturnToProfile) { tab = '我的'; render(); } else { passwordPromptSkipped = true; render(); } }
 
   function inputField(label, id, value, placeholder, required) {
     return '<div class="field"><label>' + label + (required ? ' <span class="required">*</span>' : '') + '</label><input id="' + id + '" value="' + esc(value || '') + '" placeholder="' + esc(placeholder || '') + '"></div>';
@@ -167,7 +169,7 @@
       app.innerHTML = '<main class="main onboarding"><div class="onboarding-head"><div class="brand">AI <b>BLOOM</b></div><div class="eyebrow">FIRST STEP</div><h1>先创建你的学习档案</h1><p class="muted">选择几项信息即可开始，带星号的项目为必填。</p></div>' + form + '</main>';
       return;
     }
-    shell('<div class="welcome"><div><div class="eyebrow">YOUR SPACE</div><h1>我的</h1><p class="muted">管理身份、学习目标与偏好。</p></div><button class="btn ghost" onclick="logout()">退出账户</button></div><div class="profile-layout"><aside class="card profile-summary"><div class="profile-avatar">' + esc((me.nickname || me.email)[0].toUpperCase()) + '</div><h2>' + esc(me.nickname || '未设置昵称') + '</h2><p class="muted">' + esc(me.email) + '</p><p>' + esc(me.learningGoal || '尚未设置学习目标') + '</p><b>档案完整度 ' + percent + '%</b><div class="profile-completion"><i style="width:' + percent + '%"></i></div><p class="form-tip">注册时间：' + esc((me.registeredAt || '').slice(0, 10) || '未知') + '</p></aside><section>' + form + '</section></div>');
+    shell('<div class="welcome"><div><div class="eyebrow">YOUR SPACE</div><h1>我的</h1><p class="muted">管理身份、学习目标与偏好。</p></div><button class="btn ghost" onclick="logout()">退出账户</button></div><div class="profile-layout"><aside class="card profile-summary"><div class="profile-avatar">' + esc((me.nickname || me.email)[0].toUpperCase()) + '</div><h2>' + esc(me.nickname || '未设置昵称') + '</h2><p class="muted">' + esc(me.email) + '</p><p>' + esc(me.learningGoal || '尚未设置学习目标') + '</p><b>档案完整度 ' + percent + '%</b><div class="profile-completion"><i style="width:' + percent + '%"></i></div><p class="form-tip">注册时间：' + esc((me.registeredAt || '').slice(0, 10) || '未知') + '</p><button class="btn secondary" onclick="passwordSetupPage(true)">修改登录密码</button></aside><section>' + form + '</section></div>');
   }
 
   function saveProfile(first) {
@@ -178,7 +180,7 @@
     message.style.color = 'var(--muted)';
     api('/api/profile', { method: 'PUT', body: JSON.stringify(values) }).then(function (data) {
       me = data.user;
-      if (first && !me.passwordSet) passwordSetupPage(true);
+      if (first && !me.passwordSet) passwordSetupPage(false);
       else if (first) { tab = '课程学习'; render(); }
       else { message.style.color = 'var(--green)'; message.textContent = '资料已保存'; }
     }).catch(function (e) { message.style.color = 'var(--danger)'; message.textContent = e.message; });
@@ -207,6 +209,7 @@
   window.submitPasswordLogin = submitPasswordLogin;
   window.savePassword = savePassword;
   window.skipPassword = skipPassword;
+  window.passwordSetupPage = passwordSetupPage;
   window.saveProfile = saveProfile;
   window.switchTab = switchTab;
   window.toggle = toggle;
