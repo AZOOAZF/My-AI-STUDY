@@ -76,7 +76,7 @@ function productFor(d,productId,currency,mode){const p=d.products.find(x=>x.id==
 async function app(req,res){
   const u=new URL(req.url,'http://localhost'); const d=await load();
   if(req.method==='GET'&&u.pathname==='/health')return send(res,200,{ok:true,time:new Date().toISOString()});
-  if(req.method==='GET'&&(u.pathname==='/'||u.pathname==='/index.html')){res.writeHead(200,{'Content-Type':'text/html; charset=utf-8'});return fs.createReadStream(path.join(__dirname,'index.html')).pipe(res)}
+  if(req.method==='GET'&&(u.pathname==='/'||u.pathname==='/index.html'||u.pathname==='/admin')){res.writeHead(200,{'Content-Type':'text/html; charset=utf-8'});return fs.createReadStream(path.join(__dirname,'index.html')).pipe(res)}
   if(req.method==='GET'&&u.pathname==='/app.js'){res.writeHead(200,{'Content-Type':'application/javascript; charset=utf-8'});return fs.createReadStream(path.join(__dirname,'app.js')).pipe(res)}
   if(req.method==='GET'&&u.pathname==='/api/tasks')return send(res,200,{tasks:d.tasks});
   if(req.method==='POST'&&u.pathname==='/api/auth/request-code'){

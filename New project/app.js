@@ -40,6 +40,18 @@
     app.innerHTML = '<main class="auth-page"><section class="auth-panel"><div class="auth-card"><div class="brand">AI <b>BLOOM</b></div><h1>' + (authMode === 'register' ? '创建学习账户' : '欢迎回来') + '</h1><p class="muted">' + (authMode === 'register' ? '一个邮箱只能注册一个账户，注册后先完成简洁学习档案。' : (passwordLogin ? '使用已设置的邮箱和密码快速登录。' : '使用注册邮箱接收验证码，忘记密码时也可用验证码找回。')) + '</p><div class="auth-tabs"><button class="' + (authMode === 'login' ? 'active' : '') + '" onclick="authPage(\'login\')">登录</button><button class="' + (authMode === 'register' ? 'active' : '') + '" onclick="authPage(\'register\')">注册</button></div>' + (authMode === 'login' ? '<div class="auth-methods"><button class="' + (!passwordLogin ? 'active' : '') + '" onclick="authPage(\'login\',\'code\')">验证码登录</button><button class="' + (passwordLogin ? 'active' : '') + '" onclick="authPage(\'login\',\'password\')">密码登录</button></div>' : '') + '<div class="field"><label>邮箱地址</label><input id="authEmail" type="email" autocomplete="email" placeholder="name@example.com"></div>' + (passwordLogin ? '<div class="field"><label>登录密码</label><input id="authPassword" type="password" autocomplete="current-password" placeholder="请输入已设置的密码"></div>' : '<div class="field"><label>邮箱验证码</label><div class="code-row"><input id="authCode" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="6 位验证码"><button class="btn secondary" id="sendCode" onclick="requestCode()">获取验证码</button></div></div>') + '<div id="authError" class="form-error"></div><button class="btn" style="width:100%" id="authSubmit" onclick="' + (passwordLogin ? 'submitPasswordLogin()' : 'submitAuth()') + '">' + (authMode === 'register' ? '注册并继续' : '登录') + '</button><p class="form-tip">继续即表示你同意将邮箱用于账户验证和必要服务通知。</p></div></section><aside class="auth-scene"><div class="scene-copy"><h2>把每一次学习，沉淀成自己的成长轨迹。</h2><p>支持 QQ、网易、Gmail、Outlook、iCloud 等常见邮箱。</p><div class="mail-list"><span>QQ 邮箱</span><span>网易邮箱</span><span>Gmail</span><span>Outlook</span><span>iCloud Mail</span></div></div></aside></main>';
   }
 
+  function adminLoginPage() {
+    app.innerHTML = '<main class="auth-page"><section class="auth-panel"><div class="auth-card"><div class="brand">AI <b>BLOOM</b></div><h1>管理员登录</h1><p class="muted">请输入后台管理员账号凭据。</p><div class="field"><label>管理员邮箱</label><input id="adminEmail" type="email" autocomplete="username" placeholder="管理员邮箱"></div><div class="field"><label>管理员密码</label><input id="adminPassword" type="password" autocomplete="current-password" placeholder="管理员密码"></div><div id="adminError" class="form-error"></div><button class="btn" style="width:100%" id="adminSubmit" onclick="submitAdminLogin()">进入后台</button><p class="form-tip"><a href="/">返回学习社区</a></p></div></section><aside class="auth-scene"><div class="scene-copy"><h2>AI Bloom 运营后台</h2><p>查看用户、打卡记录和社区运营数据。</p></div></aside></main>';
+  }
+
+  function submitAdminLogin() {
+    var error = document.getElementById('adminError');
+    var submit = document.getElementById('adminSubmit');
+    error.textContent = '';
+    submit.disabled = true;
+    api('/api/admin/login', { method: 'POST', body: JSON.stringify({ email: document.getElementById('adminEmail').value.trim(), password: document.getElementById('adminPassword').value }) }).then(acceptLogin).catch(function (e) { error.textContent = e.message; }).finally(function () { submit.disabled = false; });
+  }
+
   function requestCode() {
     var email = document.getElementById('authEmail').value.trim();
     var button = document.getElementById('sendCode');
@@ -204,6 +216,7 @@
   function admin() { api('/api/admin/stats').then(function (stats) { app.innerHTML = '<main class="main"><section class="card"><div class="brand">AI <b>BLOOM</b></div><h1>运营控制台</h1><div class="stats"><div class="stat"><b>' + stats.users + '</b><span>用户</span></div><div class="stat"><b>' + stats.records + '</b><span>打卡</span></div><div class="stat"><b>' + stats.posts + '</b><span>帖子</span></div></div><button class="btn ghost" onclick="logout()">退出</button></section></main>'; }); }
 
   window.authPage = authPage;
+  window.submitAdminLogin = submitAdminLogin;
   window.requestCode = requestCode;
   window.submitAuth = submitAuth;
   window.submitPasswordLogin = submitPasswordLogin;
@@ -216,5 +229,7 @@
   window.addNote = addNote;
   window.addPost = addPost;
   window.logout = logout;
-  if (token) boot(); else authPage('login');
+  if (location.pathname === '/admin') adminLoginPage();
+  else if (token) boot();
+  else authPage('login');
 }());

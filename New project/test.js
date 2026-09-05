@@ -69,3 +69,11 @@ test('onboarding uses compact selectable options', () => {
   assert.match(app, /selectField\('国家或地区'/);
   assert.equal(app.includes('个人网站'), false);
 });
+
+test('admin console is available only through a direct path', () => {
+  const server = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  const app = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
+  assert.match(server, /u\.pathname==='\/admin'/);
+  assert.match(app, /location\.pathname === '\/admin'/);
+  assert.match(app, /管理员登录/);
+});
