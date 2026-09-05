@@ -2,6 +2,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const nodemailer = require('nodemailer');
 const { welcome, verificationCode, orderConfirmation, paymentFailed } = require('./email-templates');
 const { load: loadData, save } = require('./storage');
 
@@ -9,14 +10,21 @@ const PORT = Number(process.env.PORT || 3200);
 const APP_BASE_URL = process.env.APP_BASE_URL || 'http://localhost:' + PORT;
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@example.com';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
+const EMAIL_PROVIDER = String(process.env.EMAIL_PROVIDER || 'resend').toLowerCase();
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
-const EMAIL_FROM = process.env.EMAIL_FROM || 'AI Bloom <onboarding@resend.dev>';
+const SMTP_HOST = process.env.SMTP_HOST || 'smtp.qq.com';
+const SMTP_PORT = Number(process.env.SMTP_PORT || 465);
+const SMTP_SECURE = String(process.env.SMTP_SECURE || 'true').toLowerCase() !== 'false';
+const SMTP_USER = process.env.SMTP_USER || '';
+const SMTP_PASS = process.env.SMTP_PASS || '';
+const EMAIL_FROM = process.env.EMAIL_FROM || (SMTP_USER ? `AI Bloom <${SMTP_USER}>` : 'AI Bloom <onboarding@resend.dev>');
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || '';
 const PAYMENT_MODE = process.env.PAYMENT_MODE || 'test';
 const SESSION_SECRET = process.env.SESSION_SECRET || 'change-this-session-secret';
 const IS_PRODUCTION = process.env.NODE_ENV === 'production' || process.env.CONTEXT === 'production';
 const sessions = new Map();
+let smtpTransport;
 
 const units = ['Python 基础','Python 实操','大模型原理','LLM 应用','RAG 知识库','Agent 核心','框架部署','作品集项目'];
 const links = ['https://liaoxuefeng.com/books/python/introduction/index.html','https://liaoxuefeng.com/books/python/introduction/index.html','https://github.com/datawhalechina/happy-llm','https://github.com/datawhalechina/hello-agents','https://github.com/datawhalechina/hello-agents','https://github.com/datawhalechina/hello-agents','https://ollama.readthedocs.io/quickstart/','https://github.com/datawhalechina/hello-agents'];
@@ -34,7 +42,27 @@ function codeHash(email,code){return crypto.createHmac('sha256',SESSION_SECRET).
 function sameHash(a,b){return typeof a==='string'&&typeof b==='string'&&a.length===b.length&&crypto.timingSafeEqual(Buffer.from(a),Buffer.from(b));}
 function validCurrency(x){return ['usd','cny'].includes(String(x||'').toLowerCase());}
 function logError(context,error){console.error(JSON.stringify({time:new Date().toISOString(),context,error:String(error.message||error)}));}
-async function sendEmail(to,subject,html,job,d){if(!RESEND_API_KEY){d.emailJobs.push({...job,status:'skipped',reason:'RESEND_API_KEY 未配置',createdAt:new Date().toISOString()});await save(d);return false}try{const r=await fetch('https://api.resend.com/emails',{method:'POST',headers:{Authorization:'Bearer '+RESEND_API_KEY,'Content-Type':'application/json'},body:JSON.stringify({from:EMAIL_FROM,to:[to],subject,html})});if(!r.ok)throw new Error('Resend '+r.status+' '+await r.text());d.emailJobs.push({...job,status:'sent',createdAt:new Date().toISOString()});await save(d);return true}catch(e){logError('email',e);d.emailJobs.push({...job,status:'failed',error:e.message,createdAt:new Date().toISOString()});await save(d);return false}}
+function emailUnavailableReason(){
+  if(EMAIL_PROVIDER==='smtp'&&(!SMTP_USER||!SMTP_PASS))return 'SMTP_USER 或 SMTP_PASS 未配置';
+  if(EMAIL_PROVIDER==='resend'&&!RESEND_API_KEY)return 'RESEND_API_KEY 未配置';
+  if(!['smtp','resend'].includes(EMAIL_PROVIDER))return 'EMAIL_PROVIDER 不受支持';
+  return '';
+}
+async function deliverEmail(to,subject,html){
+  if(EMAIL_PROVIDER==='smtp'){
+    smtpTransport ??= nodemailer.createTransport({host:SMTP_HOST,port:SMTP_PORT,secure:SMTP_SECURE,auth:{user:SMTP_USER,pass:SMTP_PASS},disableFileAccess:true,disableUrlAccess:true});
+    await smtpTransport.sendMail({from:EMAIL_FROM,to,subject,html});
+    return;
+  }
+  const r=await fetch('https://api.resend.com/emails',{method:'POST',headers:{Authorization:'Bearer '+RESEND_API_KEY,'Content-Type':'application/json'},body:JSON.stringify({from:EMAIL_FROM,to:[to],subject,html})});
+  if(!r.ok)throw new Error('Resend '+r.status+' '+await r.text());
+}
+async function sendEmail(to,subject,html,job,d){
+  const unavailable=emailUnavailableReason();
+  if(unavailable){d.emailJobs.push({job,status:'skipped',reason:unavailable,createdAt:new Date().toISOString()});await save(d);return false}
+  try{await deliverEmail(to,subject,html);d.emailJobs.push({job,status:'sent',provider:EMAIL_PROVIDER,createdAt:new Date().toISOString()});await save(d);return true}
+  catch(e){logError('email',e);d.emailJobs.push({job,status:'failed',provider:EMAIL_PROVIDER,error:e.message,createdAt:new Date().toISOString()});await save(d);return false}
+}
 function verifyStripe(raw,signature){if(!STRIPE_WEBHOOK_SECRET)return false;const parts=Object.fromEntries(String(signature||'').split(',').map(x=>x.split('=')));if(!parts.t||!parts.v1)return false;const expected=crypto.createHmac('sha256',STRIPE_WEBHOOK_SECRET).update(parts.t+'.'+raw).digest('hex');return Math.abs(expected.length-parts.v1.length)===0&&crypto.timingSafeEqual(Buffer.from(expected),Buffer.from(parts.v1));}
 async function stripe(pathname,body){const r=await fetch('https://api.stripe.com/v1/'+pathname,{method:'POST',headers:{Authorization:'Basic '+Buffer.from(STRIPE_SECRET_KEY+':').toString('base64'),'Content-Type':'application/x-www-form-urlencoded'},body});const text=await r.text();let data;try{data=JSON.parse(text)}catch{data={raw:text}}if(!r.ok)throw new Error('Stripe '+r.status+' '+text);return data;}
 function form(obj){return new URLSearchParams(obj).toString();}

@@ -30,3 +30,13 @@ test('new users must complete a learning profile', () => {
   assert.match(page, /先创建你的学习档案/);
   assert.match(page, /experienceLevel/);
 });
+
+test('QQ SMTP is supported without committing credentials', () => {
+  const server = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  const env = fs.readFileSync(path.join(__dirname, '.env.example'), 'utf8');
+  assert.match(server, /nodemailer\.createTransport/);
+  assert.match(env, /SMTP_HOST=smtp\.qq\.com/);
+  assert.match(env, /SMTP_PASS=your-qq-mail-authorization-code/);
+  assert.doesNotMatch(server, /utceknkrghduecag/);
+  assert.doesNotMatch(env, /utceknkrghduecag/);
+});
