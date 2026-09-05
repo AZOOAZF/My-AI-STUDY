@@ -229,7 +229,7 @@
   window.addNote = addNote;
   window.addPost = addPost;
   window.logout = logout;
-  if (location.pathname === '/admin') adminLoginPage();
-  else if (token) boot();
+  if (token) boot();
+  else if (location.pathname === '/admin') adminLoginPage();
   else authPage('login');
 }());
