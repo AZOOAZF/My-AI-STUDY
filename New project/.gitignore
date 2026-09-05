@@ -3,3 +3,6 @@
 !.env.example
 node_modules/
 public/
+
+.vercel
+.env*
