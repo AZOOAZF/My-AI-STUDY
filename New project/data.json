@@ -26,7 +26,6 @@
   "tasks": [
     {
       "id": 1,
-      "date": "2026-09-03",
       "week": 1,
       "module": "Python 基础",
       "title": "变量、数据类型与输入输出",
@@ -37,11 +36,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://liaoxuefeng.com/books/python/introduction/index.html",
-      "source": "廖雪峰 Python 教程"
+      "source": "廖雪峰 Python 教程",
+      "day": 1
     },
     {
       "id": 2,
-      "date": "2026-09-04",
       "week": 1,
       "module": "Python 基础",
       "title": "条件判断",
@@ -52,11 +51,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://liaoxuefeng.com/books/python/introduction/index.html",
-      "source": "廖雪峰 Python 教程"
+      "source": "廖雪峰 Python 教程",
+      "day": 2
     },
     {
       "id": 3,
-      "date": "2026-09-05",
       "week": 1,
       "module": "Python 基础",
       "title": "循环",
@@ -67,11 +66,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://liaoxuefeng.com/books/python/introduction/index.html",
-      "source": "廖雪峰 Python 教程"
+      "source": "廖雪峰 Python 教程",
+      "day": 3
     },
     {
       "id": 4,
-      "date": "2026-09-06",
       "week": 1,
       "module": "Python 基础",
       "title": "list、tuple、dict、set",
@@ -82,11 +81,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://liaoxuefeng.com/books/python/introduction/index.html",
-      "source": "廖雪峰 Python 教程"
+      "source": "廖雪峰 Python 教程",
+      "day": 4
     },
     {
       "id": 5,
-      "date": "2026-09-07",
       "week": 1,
       "module": "Python 基础",
       "title": "函数与参数",
@@ -97,11 +96,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://liaoxuefeng.com/books/python/introduction/index.html",
-      "source": "廖雪峰 Python 教程"
+      "source": "廖雪峰 Python 教程",
+      "day": 5
     },
     {
       "id": 6,
-      "date": "2026-09-08",
       "week": 1,
       "module": "Python 基础",
       "title": "文件、JSON 与异常",
@@ -112,11 +111,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://liaoxuefeng.com/books/python/introduction/index.html",
-      "source": "廖雪峰 Python 教程"
+      "source": "廖雪峰 Python 教程",
+      "day": 6
     },
     {
       "id": 7,
-      "date": "2026-09-09",
       "week": 1,
       "module": "Python 基础",
       "title": "周测：Python 小工具",
@@ -127,11 +126,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://liaoxuefeng.com/books/python/introduction/index.html",
-      "source": "廖雪峰 Python 教程"
+      "source": "廖雪峰 Python 教程",
+      "day": 7
     },
     {
       "id": 8,
-      "date": "2026-09-10",
       "week": 2,
       "module": "Python 进阶",
       "title": "模块、pip 与虚拟环境",
@@ -142,11 +141,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://liaoxuefeng.com/books/python/introduction/index.html",
-      "source": "廖雪峰 Python 教程"
+      "source": "廖雪峰 Python 教程",
+      "day": 8
     },
     {
       "id": 9,
-      "date": "2026-09-11",
       "week": 2,
       "module": "Python 进阶",
       "title": "面向对象基础",
@@ -157,11 +156,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://liaoxuefeng.com/books/python/introduction/index.html",
-      "source": "廖雪峰 Python 教程"
+      "source": "廖雪峰 Python 教程",
+      "day": 9
     },
     {
       "id": 10,
-      "date": "2026-09-12",
       "week": 2,
       "module": "Python 进阶",
       "title": "装饰器与高阶函数",
@@ -172,11 +171,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://liaoxuefeng.com/books/python/introduction/index.html",
-      "source": "廖雪峰 Python 教程"
+      "source": "廖雪峰 Python 教程",
+      "day": 10
     },
     {
       "id": 11,
-      "date": "2026-09-13",
       "week": 2,
       "module": "Python 进阶",
       "title": "正则与文本清洗",
@@ -187,11 +186,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://liaoxuefeng.com/books/python/introduction/index.html",
-      "source": "廖雪峰 Python 教程"
+      "source": "廖雪峰 Python 教程",
+      "day": 11
     },
     {
       "id": 12,
-      "date": "2026-09-14",
       "week": 2,
       "module": "Python 进阶",
       "title": "HTTP、JSON 与 API",
@@ -202,11 +201,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://liaoxuefeng.com/books/python/introduction/index.html",
-      "source": "廖雪峰 Python 教程"
+      "source": "廖雪峰 Python 教程",
+      "day": 12
     },
     {
       "id": 13,
-      "date": "2026-09-15",
       "week": 2,
       "module": "Python 进阶",
       "title": "Git 与测试",
@@ -217,11 +216,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://liaoxuefeng.com/books/python/introduction/index.html",
-      "source": "廖雪峰 Python 教程"
+      "source": "廖雪峰 Python 教程",
+      "day": 13
     },
     {
       "id": 14,
-      "date": "2026-09-16",
       "week": 2,
       "module": "Python 进阶",
       "title": "周测：数据处理脚本",
@@ -232,11 +231,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://liaoxuefeng.com/books/python/introduction/index.html",
-      "source": "廖雪峰 Python 教程"
+      "source": "廖雪峰 Python 教程",
+      "day": 14
     },
     {
       "id": 15,
-      "date": "2026-09-17",
       "week": 3,
       "module": "大模型原理",
       "title": "NLP 任务与文本表示",
@@ -247,11 +246,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://github.com/datawhalechina/happy-llm",
-      "source": "Happy-LLM"
+      "source": "Happy-LLM",
+      "day": 15
     },
     {
       "id": 16,
-      "date": "2026-09-18",
       "week": 3,
       "module": "大模型原理",
       "title": "Token 与分词",
@@ -262,11 +261,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://github.com/datawhalechina/happy-llm",
-      "source": "Happy-LLM"
+      "source": "Happy-LLM",
+      "day": 16
     },
     {
       "id": 17,
-      "date": "2026-09-19",
       "week": 3,
       "module": "大模型原理",
       "title": "Embedding 与相似度",
@@ -277,11 +276,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://github.com/datawhalechina/happy-llm",
-      "source": "Happy-LLM"
+      "source": "Happy-LLM",
+      "day": 17
     },
     {
       "id": 18,
-      "date": "2026-09-20",
       "week": 3,
       "module": "大模型原理",
       "title": "Transformer 总览",
@@ -292,11 +291,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://github.com/datawhalechina/happy-llm",
-      "source": "Happy-LLM"
+      "source": "Happy-LLM",
+      "day": 18
     },
     {
       "id": 19,
-      "date": "2026-09-21",
       "week": 3,
       "module": "大模型原理",
       "title": "Attention 注意力机制",
@@ -307,11 +306,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://github.com/datawhalechina/happy-llm",
-      "source": "Happy-LLM"
+      "source": "Happy-LLM",
+      "day": 19
     },
     {
       "id": 20,
-      "date": "2026-09-22",
       "week": 3,
       "module": "大模型原理",
       "title": "预训练、微调与推理",
@@ -322,11 +321,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://github.com/datawhalechina/happy-llm",
-      "source": "Happy-LLM"
+      "source": "Happy-LLM",
+      "day": 20
     },
     {
       "id": 21,
-      "date": "2026-09-23",
       "week": 3,
       "module": "大模型原理",
       "title": "周测：原理讲解",
@@ -337,11 +336,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://github.com/datawhalechina/happy-llm",
-      "source": "Happy-LLM"
+      "source": "Happy-LLM",
+      "day": 21
     },
     {
       "id": 22,
-      "date": "2026-09-24",
       "week": 4,
       "module": "LLM 应用开发",
       "title": "Prompt 结构",
@@ -352,11 +351,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://github.com/datawhalechina/hello-agents",
-      "source": "Hello-Agents"
+      "source": "Hello-Agents",
+      "day": 22
     },
     {
       "id": 23,
-      "date": "2026-09-25",
       "week": 4,
       "module": "LLM 应用开发",
       "title": "结构化输出 JSON",
@@ -367,11 +366,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://github.com/datawhalechina/hello-agents",
-      "source": "Hello-Agents"
+      "source": "Hello-Agents",
+      "day": 23
     },
     {
       "id": 24,
-      "date": "2026-09-26",
       "week": 4,
       "module": "LLM 应用开发",
       "title": "多轮对话与上下文",
@@ -382,11 +381,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://github.com/datawhalechina/hello-agents",
-      "source": "Hello-Agents"
+      "source": "Hello-Agents",
+      "day": 24
     },
     {
       "id": 25,
-      "date": "2026-09-27",
       "week": 4,
       "module": "LLM 应用开发",
       "title": "Function Calling",
@@ -397,11 +396,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://github.com/datawhalechina/hello-agents",
-      "source": "Hello-Agents"
+      "source": "Hello-Agents",
+      "day": 25
     },
     {
       "id": 26,
-      "date": "2026-09-28",
       "week": 4,
       "module": "LLM 应用开发",
       "title": "评测与幻觉",
@@ -412,11 +411,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://github.com/datawhalechina/hello-agents",
-      "source": "Hello-Agents"
+      "source": "Hello-Agents",
+      "day": 26
     },
     {
       "id": 27,
-      "date": "2026-09-29",
       "week": 4,
       "module": "LLM 应用开发",
       "title": "综合：学习计划生成器",
@@ -427,11 +426,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://github.com/datawhalechina/hello-agents",
-      "source": "Hello-Agents"
+      "source": "Hello-Agents",
+      "day": 27
     },
     {
       "id": 28,
-      "date": "2026-09-30",
       "week": 4,
       "module": "LLM 应用开发",
       "title": "周测：LLM 应用",
@@ -442,11 +441,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://github.com/datawhalechina/hello-agents",
-      "source": "Hello-Agents"
+      "source": "Hello-Agents",
+      "day": 28
     },
     {
       "id": 29,
-      "date": "2026-10-01",
       "week": 5,
       "module": "RAG 知识库",
       "title": "RAG 原理与场景",
@@ -457,11 +456,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://github.com/datawhalechina/hello-agents",
-      "source": "Hello-Agents"
+      "source": "Hello-Agents",
+      "day": 29
     },
     {
       "id": 30,
-      "date": "2026-10-02",
       "week": 5,
       "module": "RAG 知识库",
       "title": "文档解析",
@@ -472,11 +471,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://github.com/datawhalechina/hello-agents",
-      "source": "Hello-Agents"
+      "source": "Hello-Agents",
+      "day": 30
     },
     {
       "id": 31,
-      "date": "2026-10-03",
       "week": 5,
       "module": "RAG 知识库",
       "title": "文本切分",
@@ -487,11 +486,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://github.com/datawhalechina/hello-agents",
-      "source": "Hello-Agents"
+      "source": "Hello-Agents",
+      "day": 31
     },
     {
       "id": 32,
-      "date": "2026-10-04",
       "week": 5,
       "module": "RAG 知识库",
       "title": "向量化",
@@ -502,11 +501,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://github.com/datawhalechina/hello-agents",
-      "source": "Hello-Agents"
+      "source": "Hello-Agents",
+      "day": 32
     },
     {
       "id": 33,
-      "date": "2026-10-05",
       "week": 5,
       "module": "RAG 知识库",
       "title": "向量数据库与召回",
@@ -517,11 +516,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://github.com/datawhalechina/hello-agents",
-      "source": "Hello-Agents"
+      "source": "Hello-Agents",
+      "day": 33
     },
     {
       "id": 34,
-      "date": "2026-10-06",
       "week": 5,
       "module": "RAG 知识库",
       "title": "重排、引用与评测",
@@ -532,11 +531,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://github.com/datawhalechina/hello-agents",
-      "source": "Hello-Agents"
+      "source": "Hello-Agents",
+      "day": 34
     },
     {
       "id": 35,
-      "date": "2026-10-07",
       "week": 5,
       "module": "RAG 知识库",
       "title": "周测：个人知识库 v1",
@@ -547,11 +546,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://github.com/datawhalechina/hello-agents",
-      "source": "Hello-Agents"
+      "source": "Hello-Agents",
+      "day": 35
     },
     {
       "id": 36,
-      "date": "2026-10-08",
       "week": 6,
       "module": "Agent 核心",
       "title": "Agent、Workflow、Chatbot",
@@ -562,11 +561,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://github.com/datawhalechina/hello-agents",
-      "source": "Hello-Agents"
+      "source": "Hello-Agents",
+      "day": 36
     },
     {
       "id": 37,
-      "date": "2026-10-09",
       "week": 6,
       "module": "Agent 核心",
       "title": "ReAct 循环",
@@ -577,11 +576,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://github.com/datawhalechina/hello-agents",
-      "source": "Hello-Agents"
+      "source": "Hello-Agents",
+      "day": 37
     },
     {
       "id": 38,
-      "date": "2026-10-10",
       "week": 6,
       "module": "Agent 核心",
       "title": "规划与任务分解",
@@ -592,11 +591,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://github.com/datawhalechina/hello-agents",
-      "source": "Hello-Agents"
+      "source": "Hello-Agents",
+      "day": 38
     },
     {
       "id": 39,
-      "date": "2026-10-11",
       "week": 6,
       "module": "Agent 核心",
       "title": "记忆与状态",
@@ -607,11 +606,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://github.com/datawhalechina/hello-agents",
-      "source": "Hello-Agents"
+      "source": "Hello-Agents",
+      "day": 39
     },
     {
       "id": 40,
-      "date": "2026-10-12",
       "week": 6,
       "module": "Agent 核心",
       "title": "工具调用与权限",
@@ -622,11 +621,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://github.com/datawhalechina/hello-agents",
-      "source": "Hello-Agents"
+      "source": "Hello-Agents",
+      "day": 40
     },
     {
       "id": 41,
-      "date": "2026-10-13",
       "week": 6,
       "module": "Agent 核心",
       "title": "反思、重试与多 Agent",
@@ -637,11 +636,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://github.com/datawhalechina/hello-agents",
-      "source": "Hello-Agents"
+      "source": "Hello-Agents",
+      "day": 41
     },
     {
       "id": 42,
-      "date": "2026-10-14",
       "week": 6,
       "module": "Agent 核心",
       "title": "周测：学习助理 Agent",
@@ -652,11 +651,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://github.com/datawhalechina/hello-agents",
-      "source": "Hello-Agents"
+      "source": "Hello-Agents",
+      "day": 42
     },
     {
       "id": 43,
-      "date": "2026-10-15",
       "week": 7,
       "module": "框架与部署",
       "title": "LangGraph 心智模型",
@@ -667,11 +666,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://ollama.readthedocs.io/quickstart/",
-      "source": "Ollama / LangGraph 文档"
+      "source": "Ollama / LangGraph 文档",
+      "day": 43
     },
     {
       "id": 44,
-      "date": "2026-10-16",
       "week": 7,
       "module": "框架与部署",
       "title": "状态图与错误分支",
@@ -682,11 +681,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://ollama.readthedocs.io/quickstart/",
-      "source": "Ollama / LangGraph 文档"
+      "source": "Ollama / LangGraph 文档",
+      "day": 44
     },
     {
       "id": 45,
-      "date": "2026-10-17",
       "week": 7,
       "module": "框架与部署",
       "title": "Dify/Coze 低代码对照",
@@ -697,11 +696,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://ollama.readthedocs.io/quickstart/",
-      "source": "Ollama / LangGraph 文档"
+      "source": "Ollama / LangGraph 文档",
+      "day": 45
     },
     {
       "id": 46,
-      "date": "2026-10-18",
       "week": 7,
       "module": "框架与部署",
       "title": "Ollama 本地模型",
@@ -712,11 +711,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://ollama.readthedocs.io/quickstart/",
-      "source": "Ollama / LangGraph 文档"
+      "source": "Ollama / LangGraph 文档",
+      "day": 46
     },
     {
       "id": 47,
-      "date": "2026-10-19",
       "week": 7,
       "module": "框架与部署",
       "title": "API 服务与 FastAPI",
@@ -727,11 +726,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://ollama.readthedocs.io/quickstart/",
-      "source": "Ollama / LangGraph 文档"
+      "source": "Ollama / LangGraph 文档",
+      "day": 47
     },
     {
       "id": 48,
-      "date": "2026-10-20",
       "week": 7,
       "module": "框架与部署",
       "title": "Docker 部署",
@@ -742,11 +741,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://ollama.readthedocs.io/quickstart/",
-      "source": "Ollama / LangGraph 文档"
+      "source": "Ollama / LangGraph 文档",
+      "day": 48
     },
     {
       "id": 49,
-      "date": "2026-10-21",
       "week": 7,
       "module": "框架与部署",
       "title": "周测：部署文档",
@@ -757,11 +756,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://ollama.readthedocs.io/quickstart/",
-      "source": "Ollama / LangGraph 文档"
+      "source": "Ollama / LangGraph 文档",
+      "day": 49
     },
     {
       "id": 50,
-      "date": "2026-10-22",
       "week": 8,
       "module": "作品集项目",
       "title": "选题与需求",
@@ -772,11 +771,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://github.com/datawhalechina/hello-agents",
-      "source": "综合使用前述资源"
+      "source": "综合使用前述资源",
+      "day": 50
     },
     {
       "id": 51,
-      "date": "2026-10-23",
       "week": 8,
       "module": "作品集项目",
       "title": "架构与拆解",
@@ -787,11 +786,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://github.com/datawhalechina/hello-agents",
-      "source": "综合使用前述资源"
+      "source": "综合使用前述资源",
+      "day": 51
     },
     {
       "id": 52,
-      "date": "2026-10-24",
       "week": 8,
       "module": "作品集项目",
       "title": "开发：核心链路",
@@ -802,11 +801,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://github.com/datawhalechina/hello-agents",
-      "source": "综合使用前述资源"
+      "source": "综合使用前述资源",
+      "day": 52
     },
     {
       "id": 53,
-      "date": "2026-10-25",
       "week": 8,
       "module": "作品集项目",
       "title": "开发：工具与记忆",
@@ -817,11 +816,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://github.com/datawhalechina/hello-agents",
-      "source": "综合使用前述资源"
+      "source": "综合使用前述资源",
+      "day": 53
     },
     {
       "id": 54,
-      "date": "2026-10-26",
       "week": 8,
       "module": "作品集项目",
       "title": "评测与异常",
@@ -832,11 +831,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://github.com/datawhalechina/hello-agents",
-      "source": "综合使用前述资源"
+      "source": "综合使用前述资源",
+      "day": 54
     },
     {
       "id": 55,
-      "date": "2026-10-27",
       "week": 8,
       "module": "作品集项目",
       "title": "发布与展示",
@@ -847,11 +846,11 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://github.com/datawhalechina/hello-agents",
-      "source": "综合使用前述资源"
+      "source": "综合使用前述资源",
+      "day": 55
     },
     {
       "id": 56,
-      "date": "2026-10-28",
       "week": 8,
       "module": "作品集项目",
       "title": "毕业复盘",
@@ -862,7 +861,8 @@
       "masteryTarget": "完成检测题并达到 80% 理解度；不会就回看当天材料。",
       "minutes": 120,
       "resource": "https://github.com/datawhalechina/hello-agents",
-      "source": "综合使用前述资源"
+      "source": "综合使用前述资源",
+      "day": 56
     }
   ],
   "notes": {
