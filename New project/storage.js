@@ -17,7 +17,28 @@ function normalize(d, seedTasks) {
   d.paymentEvents ??= {};
   d.emailJobs ??= [];
   d.authCodes ??= {};
-  d.tasks = d.tasks?.length ? d.tasks : seedTasks();
+  const sourceTasks = d.tasks?.length ? d.tasks : seedTasks();
+  d.tasks = sourceTasks.slice(0, 56).map((task, index) => {
+    const { date, ...rest } = task || {};
+    return { ...rest, id: index + 1, day: index + 1, week: Math.floor(index / 7) + 1 };
+  });
+  for (const email of Object.keys(d.progress)) {
+    const records = d.progress[email] || {};
+    const migrated = {};
+    for (const [key, value] of Object.entries(records)) {
+      const raw = String(key);
+      let day = /^\d+$/.test(raw) ? Number(raw) : 0;
+      const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+      if (!day && match) {
+        const start = Date.UTC(2026, 8, 3);
+        const current = Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+        day = Math.floor((current - start) / 86400000) + 1;
+      }
+      if (day >= 1 && day <= 56) migrated[String(day)] = { ...value, day };
+      else migrated[raw] = value;
+    }
+    d.progress[email] = migrated;
+  }
   return d;
 }
 
