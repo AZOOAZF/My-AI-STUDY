@@ -15,7 +15,7 @@ test('data file has no payment secrets', () => {
 });
 
 test('login UI has email registration without an admin entry', () => {
-  const text = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
+  const text = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8') + fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
   assert.match(text, /获取验证码/);
   assert.match(text, /注册并继续/);
   assert.equal(text.includes('管理员入口'), false);
@@ -24,7 +24,7 @@ test('login UI has email registration without an admin entry', () => {
 
 test('new users must complete a learning profile', () => {
   const server = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
-  const page = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
+  const page = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8') + fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
   assert.match(server, /profileCompleted:false/);
   assert.match(server, /purpose==='register'&&d\.users\[email\]/);
   assert.match(page, /先创建你的学习档案/);
