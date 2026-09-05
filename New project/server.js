@@ -128,7 +128,7 @@ async function app(req,res){
     d.users[me.email]={...current,passwordHash:hashPassword(password),passwordSetAt:new Date().toISOString()};
     await save(d);return send(res,200,{user:publicUser(d.users[me.email])});
   }
-  if(req.method==='GET'&&u.pathname==='/api/me')return send(res,200,{user:publicUser(d.users[me.email]||me)});
+  if(req.method==='GET'&&u.pathname==='/api/me')return send(res,200,{user:me.role==='admin'?me:publicUser(d.users[me.email]||me)});
   if(req.method==='GET'&&u.pathname==='/api/progress')return send(res,200,{progress:d.progress[me.email]||{}});
   if(req.method==='POST'&&u.pathname==='/api/progress'){const b=await readBody(req),day=progressKey(b.day??b.taskId??b.date);if(!/^([1-9]|[1-5][0-9]|56)$/.test(day))return send(res,400,{error:'打卡日必须是第 1-56 天'});d.progress[me.email]??={};d.progress[me.email][day]={day:Number(day),done:!!b.done,minutes:Number(b.minutes)||120,note:b.note||''};await save(d);return send(res,200,{progress:d.progress[me.email][day]})}
   if(req.method==='GET'&&u.pathname==='/api/notes')return send(res,200,{notes:d.notes[me.email]||[]});

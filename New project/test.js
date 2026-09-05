@@ -77,3 +77,8 @@ test('admin console is available only through a direct path', () => {
   assert.match(app, /location\.pathname === '\/admin'/);
   assert.match(app, /管理员登录/);
 });
+
+test('admin session keeps its role even if the email is also a user', () => {
+  const server = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  assert.match(server, /me\.role==='admin'\?me:publicUser/);
+});
