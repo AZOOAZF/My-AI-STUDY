@@ -42,6 +42,8 @@ function sessionToken(user){const payload=Buffer.from(JSON.stringify(user)).toSt
 function id(prefix){return prefix+'_'+crypto.randomBytes(10).toString('hex');}
 function validEmail(email){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)&&email.length<=254;}
 function codeHash(email,code){return crypto.createHmac('sha256',SESSION_SECRET).update(email+':'+code).digest('hex');}
+function challengeToken(email,purpose,hash,expiresAt){const payload=Buffer.from(JSON.stringify({email,purpose,hash,expiresAt})).toString('base64url');return payload+'.'+crypto.createHmac('sha256',SESSION_SECRET).update(payload).digest('hex');}
+function challengeData(token){try{const [payload,signature]=String(token||'').split('.');const expected=crypto.createHmac('sha256',SESSION_SECRET).update(payload).digest('hex');if(!payload||!signature||signature.length!==expected.length||!crypto.timingSafeEqual(Buffer.from(signature),Buffer.from(expected)))return null;const data=JSON.parse(Buffer.from(payload,'base64url').toString('utf8'));return Date.now()<=Number(data.expiresAt)?data:null;}catch{return null;}}
 function sameHash(a,b){return typeof a==='string'&&typeof b==='string'&&a.length===b.length&&crypto.timingSafeEqual(Buffer.from(a),Buffer.from(b));}
 function publicUser(user){if(!user)return user;const {passwordHash,...rest}=user;return {...rest,passwordSet:Boolean(passwordHash)};}
 function validPassword(password){return typeof password==='string'&&password.length>=8&&password.length<=72&&/[A-Za-z]/.test(password)&&/\d/.test(password);}
@@ -91,12 +93,13 @@ async function app(req,res){
     if(previous&&now-Number(previous.sentAt)<60000)return send(res,429,{error:'验证码发送过于频繁，请稍后再试'});
     const code=String(crypto.randomInt(100000,1000000));
     d.authCodes[email]={hash:codeHash(email,code),purpose,expiresAt:now+10*60*1000,sentAt:now,attempts:0};
+    const challenge=challengeToken(email,purpose,d.authCodes[email].hash,d.authCodes[email].expiresAt);
     const delivered=await sendEmail(email,'AI Bloom '+(purpose==='register'?'注册':'登录')+'验证码',verificationCode(code,purpose),'verification:'+purpose+':'+email,d);
     if(!delivered&&IS_PRODUCTION)return send(res,503,{error:'验证码邮件暂时无法发送，请联系网站管理员检查邮件服务配置'});
-    return send(res,200,{message:'验证码已发送至 '+email,expiresIn:600,...(!IS_PRODUCTION&&!delivered?{devCode:code}:{})});
+    return send(res,200,{message:'验证码已发送至 '+email,expiresIn:600,challenge,...(!IS_PRODUCTION&&!delivered?{devCode:code}:{})});
   }
   if(req.method==='POST'&&u.pathname==='/api/auth/login'){
-    const b=await readBody(req),email=String(b.email||'').trim().toLowerCase(),purpose=b.purpose==='register'?'register':'login',record=d.authCodes[email];
+    const b=await readBody(req),email=String(b.email||'').trim().toLowerCase(),purpose=b.purpose==='register'?'register':'login',challenge=challengeData(b.challenge),record=challenge&&challenge.email===email&&challenge.purpose===purpose?challenge:d.authCodes[email];
     if(!validEmail(email)||!/^\d{6}$/.test(String(b.code||'')))return send(res,400,{error:'请输入有效的邮箱和六位验证码'});
     if(!record||record.purpose!==purpose)return send(res,401,{error:'请先获取验证码'});
     if(Date.now()>Number(record.expiresAt)){delete d.authCodes[email];await save(d);return send(res,401,{error:'验证码已过期，请重新获取'});}
