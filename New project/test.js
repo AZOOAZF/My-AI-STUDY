@@ -2,6 +2,20 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
+const http = require('http');
+
+function withServer(run) {
+  const { app } = require('./server');
+  const server = http.createServer((req, res) => app(req, res).catch(error => {
+    res.statusCode = error.statusCode || 500;
+    res.end(JSON.stringify({ error: error.message }));
+  }));
+  return new Promise((resolve, reject) => server.listen(0, async () => {
+    try { resolve(await run('http://127.0.0.1:' + server.address().port)); }
+    catch (error) { reject(error); }
+    finally { server.close(); }
+  }));
+}
 
 test('email templates do not expose secrets', () => {
   const text = fs.readFileSync(path.join(__dirname, 'email-templates.js'), 'utf8');
@@ -81,4 +95,26 @@ test('admin console is available only through a direct path', () => {
 test('admin session keeps its role even if the email is also a user', () => {
   const server = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
   assert.match(server, /me\.role==='admin'\?me:publicUser/);
+});
+
+test('admin login fails closed without explicit credentials', async () => {
+  await withServer(async base => {
+    const response = await fetch(base + '/api/admin/login', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email: 'admin@example.com', password: 'admin123' })
+    });
+    assert.equal(response.status, 503);
+  });
+});
+
+test('oversized JSON requests are rejected', async () => {
+  await withServer(async base => {
+    const response = await fetch(base + '/api/auth/request-code', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email: 'a'.repeat(70000) + '@example.com' })
+    });
+    assert.equal(response.status, 413);
+  });
 });

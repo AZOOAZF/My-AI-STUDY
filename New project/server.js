@@ -8,8 +8,9 @@ const { load: loadData, save } = require('./storage');
 
 const PORT = Number(process.env.PORT || 3200);
 const APP_BASE_URL = process.env.APP_BASE_URL || 'http://localhost:' + PORT;
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@example.com';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
+const IS_PRODUCTION = process.env.NODE_ENV === 'production' || process.env.CONTEXT === 'production' || process.env.VERCEL_ENV === 'production';
+const ADMIN_EMAIL = String(process.env.ADMIN_EMAIL || '').trim().toLowerCase();
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
 const EMAIL_PROVIDER = String(process.env.EMAIL_PROVIDER || 'resend').toLowerCase();
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
 const SMTP_HOST = process.env.SMTP_HOST || 'smtp.qq.com';
@@ -24,9 +25,10 @@ const EMAIL_FROM = process.env.EMAIL_FROM || (SMTP_USER ? `AI Bloom <${SMTP_USER
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || '';
 const PAYMENT_MODE = process.env.PAYMENT_MODE || 'test';
-const SESSION_SECRET = process.env.SESSION_SECRET || 'change-this-session-secret';
-const IS_PRODUCTION = process.env.NODE_ENV === 'production' || process.env.CONTEXT === 'production';
-const sessions = new Map();
+const SESSION_SECRET = process.env.SESSION_SECRET || (!IS_PRODUCTION ? crypto.randomBytes(32).toString('hex') : '');
+const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const JSON_BODY_LIMIT = 64 * 1024;
+const WEBHOOK_BODY_LIMIT = 1024 * 1024;
 let smtpTransport;
 
 const units = ['Python 基础','Python 实操','大模型原理','LLM 应用','RAG 知识库','Agent 核心','框架部署','作品集项目'];
@@ -34,11 +36,12 @@ const links = ['https://liaoxuefeng.com/books/python/introduction/index.html','h
 
 function seedTasks() { const a=[]; for(let i=0;i<56;i++){const w=Math.floor(i/7);a.push({id:i+1,day:i+1,week:w+1,module:units[w],title:i%7===6?'周测与复盘：提交本周成果':units[w]+'：理论、案例与实操',description:i%7===6?'完成可运行小作品，记录一个难点和解决方法':'理论 30 分钟 · 案例 25 分钟 · 实操 55 分钟 · 复盘 20 分钟',minutes:120,resource:links[w]})} return a; }
 function load() { return loadData(seedTasks); }
-function send(res,status,data){res.writeHead(status,{'Content-Type':'application/json; charset=utf-8'});res.end(JSON.stringify(data));}
-function readBody(req){return new Promise((resolve,reject)=>{let s='';req.on('data',c=>s+=c);req.on('end',()=>{try{resolve(s?JSON.parse(s):{})}catch(e){reject(new Error('JSON 格式错误'))}});req.on('error',reject)})}
-function readRaw(req){return new Promise((resolve,reject)=>{let s='';req.on('data',c=>s+=c);req.on('end',()=>resolve(s));req.on('error',reject)})}
-function auth(req){const token=(req.headers.authorization||'').replace('Bearer ','');if(sessions.has(token))return sessions.get(token);try{const [payload,signature]=token.split('.');const expected=crypto.createHmac('sha256',SESSION_SECRET).update(payload).digest('hex');if(!payload||!signature||signature.length!==expected.length||!crypto.timingSafeEqual(Buffer.from(signature),Buffer.from(expected)))return null;return JSON.parse(Buffer.from(payload,'base64url').toString('utf8'));}catch{return null}}
-function sessionToken(user){const payload=Buffer.from(JSON.stringify(user)).toString('base64url');const signature=crypto.createHmac('sha256',SESSION_SECRET).update(payload).digest('hex');return payload+'.'+signature;}
+function send(res,status,data){res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer'});res.end(JSON.stringify(data));}
+function readLimited(req,limit,parser){return new Promise((resolve,reject)=>{const length=Number(req.headers['content-length']);if(Number.isFinite(length)&&length>limit){req.resume();const error=new Error('请求体过大');error.statusCode=413;reject(error);return}let chunks=[],size=0,settled=false;req.on('data',chunk=>{if(settled)return;size+=chunk.length;if(size>limit){settled=true;req.resume();const error=new Error('请求体过大');error.statusCode=413;reject(error);return}chunks.push(chunk)});req.on('end',()=>{if(settled)return;const raw=Buffer.concat(chunks).toString('utf8');try{resolve(parser(raw))}catch(error){reject(error)}});req.on('error',error=>{if(!settled){settled=true;reject(error)}})})}
+function readBody(req){return readLimited(req,JSON_BODY_LIMIT,raw=>{try{return raw?JSON.parse(raw):{}}catch{throw new Error('JSON 格式错误')}})}
+function readRaw(req){return readLimited(req,WEBHOOK_BODY_LIMIT,raw=>raw)}
+function auth(req){if(!SESSION_SECRET)return null;const header=String(req.headers.authorization||'');if(!header.startsWith('Bearer '))return null;const token=header.slice(7);try{const [payload,signature]=token.split('.');const expected=crypto.createHmac('sha256',SESSION_SECRET).update(payload||'').digest('hex');if(!payload||!signature||signature.length!==expected.length||!crypto.timingSafeEqual(Buffer.from(signature),Buffer.from(expected)))return null;const user=JSON.parse(Buffer.from(payload,'base64url').toString('utf8'));if(!user||typeof user.email!=='string'||typeof user.role!=='string'||!Number.isFinite(user.exp)||Date.now()>user.exp)return null;return user;}catch{return null}}
+function sessionToken(user){const payload=Buffer.from(JSON.stringify({...user,iat:Date.now(),exp:Date.now()+SESSION_TTL_MS})).toString('base64url');const signature=crypto.createHmac('sha256',SESSION_SECRET).update(payload).digest('hex');return payload+'.'+signature;}
 function id(prefix){return prefix+'_'+crypto.randomBytes(10).toString('hex');}
 function validEmail(email){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)&&email.length<=254;}
 function codeHash(email,code){return crypto.createHmac('sha256',SESSION_SECRET).update(email+':'+code).digest('hex');}
@@ -59,6 +62,11 @@ function emailUnavailableReason(){
   if(!['smtp','resend'].includes(EMAIL_PROVIDER))return 'EMAIL_PROVIDER 不受支持';
   return '';
 }
+function authUnavailableReason(){
+  if(!SESSION_SECRET)return 'SESSION_SECRET 未配置';
+  return '';
+}
+function safeEqualString(a,b){if(typeof a!=='string'||typeof b!=='string'||a.length!==b.length)return false;return crypto.timingSafeEqual(Buffer.from(a),Buffer.from(b));}
 async function deliverEmail(to,subject,html){
   if(EMAIL_PROVIDER==='smtp'){
     smtpTransport ??= nodemailer.createTransport({host:SMTP_HOST,port:SMTP_PORT,secure:SMTP_SECURE,auth:{user:SMTP_USER,pass:SMTP_PASS},connectionTimeout:SMTP_CONNECTION_TIMEOUT,greetingTimeout:SMTP_GREETING_TIMEOUT,socketTimeout:SMTP_SOCKET_TIMEOUT,disableFileAccess:true,disableUrlAccess:true});
@@ -85,6 +93,7 @@ async function app(req,res){
   if(req.method==='GET'&&u.pathname==='/app.js'){res.writeHead(200,{'Content-Type':'application/javascript; charset=utf-8'});return fs.createReadStream(path.join(__dirname,'app.js')).pipe(res)}
   if(req.method==='GET'&&u.pathname==='/api/tasks')return send(res,200,{tasks:d.tasks});
   if(req.method==='POST'&&u.pathname==='/api/auth/request-code'){
+    const authUnavailable=authUnavailableReason();if(authUnavailable&&IS_PRODUCTION)return send(res,503,{error:'认证服务暂时不可用，请联系网站管理员'});
     const b=await readBody(req),email=String(b.email||'').trim().toLowerCase(),purpose=b.purpose==='register'?'register':'login';
     if(!validEmail(email))return send(res,400,{error:'请输入有效的邮箱地址'});
     if(purpose==='register'&&d.users[email])return send(res,409,{error:'该邮箱已经注册，请直接登录'});
@@ -99,6 +108,7 @@ async function app(req,res){
     return send(res,200,{message:'验证码已发送至 '+email,expiresIn:600,challenge,...(!IS_PRODUCTION&&!delivered?{devCode:code}:{})});
   }
   if(req.method==='POST'&&u.pathname==='/api/auth/login'){
+    const authUnavailable=authUnavailableReason();if(authUnavailable&&IS_PRODUCTION)return send(res,503,{error:'认证服务暂时不可用，请联系网站管理员'});
     const b=await readBody(req),email=String(b.email||'').trim().toLowerCase(),purpose=b.purpose==='register'?'register':'login',challenge=challengeData(b.challenge),record=challenge&&challenge.email===email&&challenge.purpose===purpose?challenge:d.authCodes[email];
     if(!validEmail(email)||!/^\d{6}$/.test(String(b.code||'')))return send(res,400,{error:'请输入有效的邮箱和六位验证码'});
     if(!record||record.purpose!==purpose)return send(res,401,{error:'请先获取验证码'});
@@ -113,17 +123,18 @@ async function app(req,res){
     if(isNew)d.users[email]={email,nickname:'',fullName:'',bio:'',country:'',city:'',timezone:'',language:'',occupation:'',organization:'',experienceLevel:'',weeklyHours:'',learningGoal:'',learningGoals:[],interests:[],learningStyle:'',preferredStudyTime:'',website:'',github:'',allowDiscovery:false,passwordHash:null,profileCompleted:false,registeredAt:new Date().toISOString()};
     await save(d);
     if(isNew)await sendEmail(email,'欢迎加入 AI Bloom',welcome(d.users[email]),'welcome:'+email,d);
-    const user={email,role:'user'},token=sessionToken(user);sessions.set(token,user);
+    const user={email,role:'user'},token=sessionToken(user);
     return send(res,200,{token,user:publicUser(d.users[email]),isNew,needsProfile:!d.users[email].profileCompleted,needsPassword:!d.users[email].passwordHash});
   }
   if(req.method==='POST'&&u.pathname==='/api/auth/password-login'){
+    const authUnavailable=authUnavailableReason();if(authUnavailable&&IS_PRODUCTION)return send(res,503,{error:'认证服务暂时不可用，请联系网站管理员'});
     const b=await readBody(req),email=String(b.email||'').trim().toLowerCase(),password=String(b.password||''),record=d.users[email];
     if(!validEmail(email)||!password)return send(res,400,{error:'请输入有效的邮箱和密码'});
     if(!record||!record.passwordHash||!verifyPassword(password,record.passwordHash))return send(res,401,{error:'邮箱或密码不正确；忘记密码可使用邮箱验证码登录后重设'});
-    const user={email,role:'user'},token=sessionToken(user);sessions.set(token,user);
+    const user={email,role:'user'},token=sessionToken(user);
     return send(res,200,{token,user:publicUser(record),isNew:false,needsProfile:!record.profileCompleted,needsPassword:false});
   }
-  if(req.method==='POST'&&u.pathname==='/api/admin/login'){const b=await readBody(req);if(b.email!==ADMIN_EMAIL||b.password!==ADMIN_PASSWORD)return send(res,401,{error:'管理员账号或密码错误'});const user={email:b.email,role:'admin'},token=sessionToken(user);sessions.set(token,user);return send(res,200,{token,user})}
+  if(req.method==='POST'&&u.pathname==='/api/admin/login'){const b=await readBody(req);if(!ADMIN_EMAIL||!ADMIN_PASSWORD||!SESSION_SECRET)return send(res,503,{error:'管理员认证尚未配置'});const email=String(b.email||'').trim().toLowerCase();if(!safeEqualString(email,ADMIN_EMAIL)||!safeEqualString(String(b.password||''),ADMIN_PASSWORD))return send(res,401,{error:'管理员账号或密码错误'});const user={email,role:'admin'},token=sessionToken(user);return send(res,200,{token,user})}
   if(req.method==='POST'&&u.pathname==='/api/payments/stripe/webhook'){const raw=await readRaw(req);if(!verifyStripe(raw,req.headers['stripe-signature']))return send(res,400,{error:'webhook 签名无效'});const event=JSON.parse(raw);if(d.paymentEvents[event.id])return send(res,200,{received:true,duplicate:true});d.paymentEvents[event.id]={type:event.type,receivedAt:new Date().toISOString()};const obj=event.data?.object||{};const order=d.orders[obj.metadata?.orderId||obj.client_reference_id];if(order&&(event.type==='checkout.session.completed'||event.type==='invoice.paid')){if(order.status!=='paid'){order.status='paid';order.paidAt=new Date().toISOString();await sendEmail(order.userEmail,'订单支付成功',orderConfirmation(order),'order_confirmation:'+order.id,d)}}else if(order&&(event.type==='checkout.session.async_payment_failed'||event.type==='invoice.payment_failed')){order.status='failed';await sendEmail(order.userEmail,'支付失败通知',paymentFailed(order),'payment_failed:'+order.id,d)}await save(d);return send(res,200,{received:true})}
   const me=auth(req); if(!me)return send(res,401,{error:'请先登录'});
   if(req.method==='POST'&&u.pathname==='/api/auth/password'){
@@ -136,12 +147,12 @@ async function app(req,res){
   }
   if(req.method==='GET'&&u.pathname==='/api/me')return send(res,200,{user:me.role==='admin'?me:publicUser(d.users[me.email]||me)});
   if(req.method==='GET'&&u.pathname==='/api/progress')return send(res,200,{progress:d.progress[me.email]||{}});
-  if(req.method==='POST'&&u.pathname==='/api/progress'){const b=await readBody(req),day=progressKey(b.day??b.taskId??b.date);if(!/^([1-9]|[1-5][0-9]|56)$/.test(day))return send(res,400,{error:'打卡日必须是第 1-56 天'});d.progress[me.email]??={};d.progress[me.email][day]={day:Number(day),done:!!b.done,minutes:Number(b.minutes)||120,note:b.note||''};await save(d);return send(res,200,{progress:d.progress[me.email][day]})}
+  if(req.method==='POST'&&u.pathname==='/api/progress'){const b=await readBody(req),day=progressKey(b.day??b.taskId??b.date),minutes=Number(b.minutes);if(!/^([1-9]|[1-5][0-9]|56)$/.test(day))return send(res,400,{error:'打卡日必须是第 1-56 天'});if(!Number.isFinite(minutes)||minutes<0||minutes>1440)return send(res,400,{error:'学习时长必须是 0-1440 分钟'});if(String(b.note||'').length>2000)return send(res,400,{error:'复盘内容不能超过 2000 个字符'});d.progress[me.email]??={};d.progress[me.email][day]={day:Number(day),done:!!b.done,minutes,note:String(b.note||'')};await save(d);return send(res,200,{progress:d.progress[me.email][day]})}
   if(req.method==='GET'&&u.pathname==='/api/notes')return send(res,200,{notes:d.notes[me.email]||[]});
-  if(req.method==='POST'&&u.pathname==='/api/notes'){const b=await readBody(req);d.notes[me.email]??=[];const n={id:Date.now(),title:b.title||'未命名笔记',content:b.content||'',tags:b.tags||[],createdAt:new Date().toISOString()};d.notes[me.email].unshift(n);await save(d);return send(res,200,{note:n})}
+  if(req.method==='POST'&&u.pathname==='/api/notes'){const b=await readBody(req),title=String(b.title||'未命名笔记').trim(),content=String(b.content||'');if(title.length>200||content.length>10000)return send(res,400,{error:'笔记标题最多 200 个字符，内容最多 10000 个字符'});d.notes[me.email]??=[];const n={id:Date.now(),title,content,tags:Array.isArray(b.tags)?b.tags.slice(0,12).map(x=>String(x).slice(0,40)):[],createdAt:new Date().toISOString()};d.notes[me.email].unshift(n);await save(d);return send(res,200,{note:n})}
   if(req.method==='GET'&&u.pathname==='/api/forum')return send(res,200,{posts:d.posts});
-  if(req.method==='POST'&&u.pathname==='/api/forum'){const b=await readBody(req);if(!b.title||!b.content)return send(res,400,{error:'标题和内容不能为空'});const p={id:Date.now(),title:b.title,content:b.content,author:me.email,likes:0,replies:[],createdAt:new Date().toISOString()};d.posts.unshift(p);await save(d);return send(res,200,{post:p})}
-  if(req.method==='POST'&&u.pathname.startsWith('/api/forum/')&&u.pathname.endsWith('/reply')){const idn=Number(u.pathname.split('/')[3]),b=await readBody(req),p=d.posts.find(x=>x.id===idn);if(!p)return send(res,404,{error:'帖子不存在'});p.replies.push({id:Date.now(),author:me.email,content:b.content||'',createdAt:new Date().toISOString()});await save(d);return send(res,200,{post:p})}
+  if(req.method==='POST'&&u.pathname==='/api/forum'){const b=await readBody(req),title=String(b.title||'').trim(),content=String(b.content||'');if(!title||!content)return send(res,400,{error:'标题和内容不能为空'});if(title.length>200||content.length>10000)return send(res,400,{error:'标题最多 200 个字符，内容最多 10000 个字符'});const p={id:Date.now(),title,content,author:me.email,likes:0,replies:[],createdAt:new Date().toISOString()};d.posts.unshift(p);await save(d);return send(res,200,{post:p})}
+  if(req.method==='POST'&&u.pathname.startsWith('/api/forum/')&&u.pathname.endsWith('/reply')){const idn=Number(u.pathname.split('/')[3]),b=await readBody(req),content=String(b.content||'').trim(),p=d.posts.find(x=>x.id===idn);if(!p)return send(res,404,{error:'帖子不存在'});if(!content)return send(res,400,{error:'回复内容不能为空'});if(content.length>5000)return send(res,400,{error:'回复内容不能超过 5000 个字符'});p.replies.push({id:Date.now(),author:me.email,content,createdAt:new Date().toISOString()});await save(d);return send(res,200,{post:p})}
   if(req.method==='PUT'&&u.pathname==='/api/profile'){
     const b=await readBody(req),nickname=String(b.nickname||'').trim(),country=String(b.country||'').trim(),rawGoals=Array.isArray(b.learningGoals)?b.learningGoals:(Array.isArray(b.learningGoal)?b.learningGoal:[b.learningGoal]),goals=rawGoals.map(x=>String(x||'').trim()).filter(Boolean).slice(0,6),goal=goals.join('、'),level=String(b.experienceLevel||'').trim();
     if(!nickname||!country||!goal||!level)return send(res,400,{error:'昵称、国家或地区、经验水平和学习目标为必填项'});
@@ -157,5 +168,5 @@ async function app(req,res){
 }
 module.exports = { app };
 if (require.main === module) {
-  http.createServer((req,res)=>app(req,res).catch(e=>{logError('request',e);send(res,500,{error:'服务器内部错误'})})).listen(PORT,()=>console.log('AI Bloom server: http://localhost:'+PORT));
+  http.createServer((req,res)=>app(req,res).catch(e=>{logError('request',e);send(res,e.statusCode||500,{error:e.statusCode===413?'请求体过大':'服务器内部错误'})})).listen(PORT,()=>console.log('AI Bloom server: http://localhost:'+PORT));
 }
