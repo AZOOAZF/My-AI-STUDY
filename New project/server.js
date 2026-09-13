@@ -26,9 +26,13 @@ const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || '';
 const PAYMENT_MODE = process.env.PAYMENT_MODE || 'test';
 const SESSION_SECRET = process.env.SESSION_SECRET || (!IS_PRODUCTION ? crypto.randomBytes(32).toString('hex') : '');
-const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const ACCESS_TTL_MS = 60 * 60 * 1000;
+const REFRESH_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const JSON_BODY_LIMIT = 64 * 1024;
 const WEBHOOK_BODY_LIMIT = 1024 * 1024;
+const AUTH_WINDOW_MS = 15 * 60 * 1000;
+const AUTH_MAX_ATTEMPTS = 10;
+const authAttempts = new Map();
 let smtpTransport;
 
 const units = ['Python 基础','Python 实操','大模型原理','LLM 应用','RAG 知识库','Agent 核心','框架部署','作品集项目'];
@@ -41,7 +45,10 @@ function readLimited(req,limit,parser){return new Promise((resolve,reject)=>{con
 function readBody(req){return readLimited(req,JSON_BODY_LIMIT,raw=>{try{return raw?JSON.parse(raw):{}}catch{throw new Error('JSON 格式错误')}})}
 function readRaw(req){return readLimited(req,WEBHOOK_BODY_LIMIT,raw=>raw)}
 function auth(req){if(!SESSION_SECRET)return null;const header=String(req.headers.authorization||'');if(!header.startsWith('Bearer '))return null;const token=header.slice(7);try{const [payload,signature]=token.split('.');const expected=crypto.createHmac('sha256',SESSION_SECRET).update(payload||'').digest('hex');if(!payload||!signature||signature.length!==expected.length||!crypto.timingSafeEqual(Buffer.from(signature),Buffer.from(expected)))return null;const user=JSON.parse(Buffer.from(payload,'base64url').toString('utf8'));if(!user||typeof user.email!=='string'||typeof user.role!=='string'||!Number.isFinite(user.exp)||Date.now()>user.exp)return null;return user;}catch{return null}}
-function sessionToken(user){const payload=Buffer.from(JSON.stringify({...user,iat:Date.now(),exp:Date.now()+SESSION_TTL_MS})).toString('base64url');const signature=crypto.createHmac('sha256',SESSION_SECRET).update(payload).digest('hex');return payload+'.'+signature;}
+function sessionToken(user){const now=Date.now();const payload=Buffer.from(JSON.stringify({...user,iat:now,exp:now+ACCESS_TTL_MS})).toString('base64url');const signature=crypto.createHmac('sha256',SESSION_SECRET).update(payload).digest('hex');return payload+'.'+signature;}
+function refreshTokenHash(token){return crypto.createHmac('sha256',SESSION_SECRET).update(String(token||'')).digest('hex');}
+function issueRefreshToken(email,role,d){const token=crypto.randomBytes(32).toString('base64url');d.refreshTokens[refreshTokenHash(token)]={email,role,expiresAt:Date.now()+REFRESH_TTL_MS,createdAt:new Date().toISOString()};return token;}
+function consumeRefreshToken(token,d){const key=refreshTokenHash(token),record=d.refreshTokens[key];if(!record||Date.now()>Number(record.expiresAt)){delete d.refreshTokens[key];return null;}delete d.refreshTokens[key];return {email:record.email,role:record.role};}
 function id(prefix){return prefix+'_'+crypto.randomBytes(10).toString('hex');}
 function validEmail(email){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)&&email.length<=254;}
 function codeHash(email,code){return crypto.createHmac('sha256',SESSION_SECRET).update(email+':'+code).digest('hex');}
@@ -67,6 +74,9 @@ function authUnavailableReason(){
   return '';
 }
 function safeEqualString(a,b){if(typeof a!=='string'||typeof b!=='string'||a.length!==b.length)return false;return crypto.timingSafeEqual(Buffer.from(a),Buffer.from(b));}
+function authAttemptKey(req,scope,email){const forwarded=String(req.headers['x-forwarded-for']||'').split(',')[0].trim();return scope+':'+(forwarded||req.socket?.remoteAddress||'unknown')+':'+email;}
+function allowAuthAttempt(key){const now=Date.now(),current=authAttempts.get(key);if(!current||now>=current.resetAt){authAttempts.set(key,{count:1,resetAt:now+AUTH_WINDOW_MS});return true;}current.count+=1;return current.count<=AUTH_MAX_ATTEMPTS;}
+function clearAuthAttempts(key){authAttempts.delete(key);}
 async function deliverEmail(to,subject,html){
   if(EMAIL_PROVIDER==='smtp'){
     smtpTransport ??= nodemailer.createTransport({host:SMTP_HOST,port:SMTP_PORT,secure:SMTP_SECURE,auth:{user:SMTP_USER,pass:SMTP_PASS},connectionTimeout:SMTP_CONNECTION_TIMEOUT,greetingTimeout:SMTP_GREETING_TIMEOUT,socketTimeout:SMTP_SOCKET_TIMEOUT,disableFileAccess:true,disableUrlAccess:true});
@@ -121,20 +131,29 @@ async function app(req,res){
     if(purpose==='login'&&!d.users[email]){await save(d);return send(res,404,{error:'该邮箱尚未注册，请先注册'});}
     const isNew=purpose==='register';
     if(isNew)d.users[email]={email,nickname:'',fullName:'',bio:'',country:'',city:'',timezone:'',language:'',occupation:'',organization:'',experienceLevel:'',weeklyHours:'',learningGoal:'',learningGoals:[],interests:[],learningStyle:'',preferredStudyTime:'',website:'',github:'',allowDiscovery:false,passwordHash:null,profileCompleted:false,registeredAt:new Date().toISOString()};
+    const user={email,role:'user'},token=sessionToken(user),refreshToken=issueRefreshToken(email,'user',d);
     await save(d);
     if(isNew)await sendEmail(email,'欢迎加入 AI Bloom',welcome(d.users[email]),'welcome:'+email,d);
-    const user={email,role:'user'},token=sessionToken(user);
-    return send(res,200,{token,user:publicUser(d.users[email]),isNew,needsProfile:!d.users[email].profileCompleted,needsPassword:!d.users[email].passwordHash});
+    return send(res,200,{token,refreshToken,user:publicUser(d.users[email]),isNew,needsProfile:!d.users[email].profileCompleted,needsPassword:!d.users[email].passwordHash});
   }
   if(req.method==='POST'&&u.pathname==='/api/auth/password-login'){
     const authUnavailable=authUnavailableReason();if(authUnavailable&&IS_PRODUCTION)return send(res,503,{error:'认证服务暂时不可用，请联系网站管理员'});
-    const b=await readBody(req),email=String(b.email||'').trim().toLowerCase(),password=String(b.password||''),record=d.users[email];
+    const b=await readBody(req),email=String(b.email||'').trim().toLowerCase(),password=String(b.password||''),record=d.users[email],attemptKey=authAttemptKey(req,'password',email);if(!allowAuthAttempt(attemptKey))return send(res,429,{error:'登录尝试过于频繁，请 15 分钟后再试'});
     if(!validEmail(email)||!password)return send(res,400,{error:'请输入有效的邮箱和密码'});
     if(!record||!record.passwordHash||!verifyPassword(password,record.passwordHash))return send(res,401,{error:'邮箱或密码不正确；忘记密码可使用邮箱验证码登录后重设'});
-    const user={email,role:'user'},token=sessionToken(user);
-    return send(res,200,{token,user:publicUser(record),isNew:false,needsProfile:!record.profileCompleted,needsPassword:false});
+    clearAuthAttempts(attemptKey);const user={email,role:'user'},token=sessionToken(user),refreshToken=issueRefreshToken(email,'user',d);await save(d);
+    return send(res,200,{token,refreshToken,user:publicUser(record),isNew:false,needsProfile:!record.profileCompleted,needsPassword:false});
   }
-  if(req.method==='POST'&&u.pathname==='/api/admin/login'){const b=await readBody(req);if(!ADMIN_EMAIL||!ADMIN_PASSWORD||!SESSION_SECRET)return send(res,503,{error:'管理员认证尚未配置'});const email=String(b.email||'').trim().toLowerCase();if(!safeEqualString(email,ADMIN_EMAIL)||!safeEqualString(String(b.password||''),ADMIN_PASSWORD))return send(res,401,{error:'管理员账号或密码错误'});const user={email,role:'admin'},token=sessionToken(user);return send(res,200,{token,user})}
+  if(req.method==='POST'&&u.pathname==='/api/admin/login'){const b=await readBody(req);if(!ADMIN_EMAIL||!ADMIN_PASSWORD||!SESSION_SECRET)return send(res,503,{error:'管理员认证尚未配置'});const email=String(b.email||'').trim().toLowerCase(),attemptKey=authAttemptKey(req,'admin',email);if(!allowAuthAttempt(attemptKey))return send(res,429,{error:'登录尝试过于频繁，请 15 分钟后再试'});if(!safeEqualString(email,ADMIN_EMAIL)||!safeEqualString(String(b.password||''),ADMIN_PASSWORD))return send(res,401,{error:'管理员账号或密码错误'});clearAuthAttempts(attemptKey);const user={email,role:'admin'},token=sessionToken(user),refreshToken=issueRefreshToken(email,'admin',d);await save(d);return send(res,200,{token,refreshToken,user})}
+  if(req.method==='POST'&&u.pathname==='/api/auth/refresh'){
+    if(!SESSION_SECRET)return send(res,503,{error:'认证服务暂时不可用，请联系网站管理员'});
+    const b=await readBody(req),record=consumeRefreshToken(b.refreshToken,d);if(!record)return send(res,401,{error:'登录状态已失效，请重新登录'});
+    const token=sessionToken(record.user||record),refreshToken=issueRefreshToken(record.email,record.role,d);await save(d);
+    return send(res,200,{token,refreshToken,user:record.role==='admin'?record:publicUser(d.users[record.email]||record)});
+  }
+  if(req.method==='POST'&&u.pathname==='/api/auth/logout'){
+    const b=await readBody(req);if(b.refreshToken){delete d.refreshTokens[refreshTokenHash(b.refreshToken)];await save(d);}return send(res,200,{ok:true});
+  }
   if(req.method==='POST'&&u.pathname==='/api/payments/stripe/webhook'){const raw=await readRaw(req);if(!verifyStripe(raw,req.headers['stripe-signature']))return send(res,400,{error:'webhook 签名无效'});const event=JSON.parse(raw);if(d.paymentEvents[event.id])return send(res,200,{received:true,duplicate:true});d.paymentEvents[event.id]={type:event.type,receivedAt:new Date().toISOString()};const obj=event.data?.object||{};const order=d.orders[obj.metadata?.orderId||obj.client_reference_id];if(order&&(event.type==='checkout.session.completed'||event.type==='invoice.paid')){if(order.status!=='paid'){order.status='paid';order.paidAt=new Date().toISOString();await sendEmail(order.userEmail,'订单支付成功',orderConfirmation(order),'order_confirmation:'+order.id,d)}}else if(order&&(event.type==='checkout.session.async_payment_failed'||event.type==='invoice.payment_failed')){order.status='failed';await sendEmail(order.userEmail,'支付失败通知',paymentFailed(order),'payment_failed:'+order.id,d)}await save(d);return send(res,200,{received:true})}
   const me=auth(req); if(!me)return send(res,401,{error:'请先登录'});
   if(req.method==='POST'&&u.pathname==='/api/auth/password'){

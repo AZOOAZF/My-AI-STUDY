@@ -118,3 +118,13 @@ test('oversized JSON requests are rejected', async () => {
     assert.equal(response.status, 413);
   });
 });
+
+test('long-lived login uses a revocable refresh token', () => {
+  const server = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  const storage = fs.readFileSync(path.join(__dirname, 'storage.js'), 'utf8');
+  const app = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
+  assert.match(server, /api\/auth\/refresh/);
+  assert.match(server, /consumeRefreshToken/);
+  assert.match(storage, /d\.refreshTokens \?\?=/);
+  assert.match(app, /bloom-refresh-token/);
+});

@@ -1,6 +1,7 @@
 (function () {
   var app = document.getElementById('app');
   var token = localStorage.getItem('bloom-token');
+  var refreshToken = localStorage.getItem('bloom-refresh-token');
   var me;
   var tasks = [];
   var progress = {};
@@ -19,14 +20,31 @@
     });
   }
 
-  function api(path, options) {
+  function refreshSession() {
+    if (!refreshToken) return Promise.reject(Error('登录状态已失效'));
+    return fetch('/api/auth/refresh', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refreshToken: refreshToken }) }).then(function (response) {
+      return response.json().then(function (data) {
+        if (!response.ok) throw Error(data.error || '登录状态已失效');
+        token = data.token;
+        refreshToken = data.refreshToken || refreshToken;
+        localStorage.setItem('bloom-token', token);
+        localStorage.setItem('bloom-refresh-token', refreshToken);
+        return data;
+      });
+    });
+  }
+
+  function api(path, options, retried) {
     options = options || {};
     options.headers = Object.assign({ 'Content-Type': 'application/json' }, token ? { Authorization: 'Bearer ' + token } : {});
     return fetch(path, options).then(function (response) {
       return response.text().then(function (raw) {
         var data = {};
         try { data = raw ? JSON.parse(raw) : {}; } catch (e) { throw Error('服务器返回了无效响应'); }
-        if (!response.ok) throw Error(data.error || '请求失败');
+        if (!response.ok) {
+          if (response.status === 401 && token && refreshToken && !retried && path !== '/api/auth/refresh') return refreshSession().then(function () { return api(path, options, true); });
+          throw Error(data.error || '请求失败');
+        }
         return data;
       });
     });
@@ -80,7 +98,9 @@
 
   function acceptLogin(data) {
     token = data.token;
+    refreshToken = data.refreshToken || '';
     localStorage.setItem('bloom-token', token);
+    if (refreshToken) localStorage.setItem('bloom-refresh-token', refreshToken);
     boot();
   }
 
@@ -111,7 +131,7 @@
       if (me.role !== 'admin' && !me.profileCompleted) { profilePage(true); return; }
       if (me.role !== 'admin' && !me.passwordSet && !passwordPromptSkipped) { passwordSetupPage(false); return; }
       render();
-    }).catch(function () { localStorage.removeItem('bloom-token'); token = null; authPage('login'); });
+  }).catch(function () { localStorage.removeItem('bloom-token'); localStorage.removeItem('bloom-refresh-token'); token = null; refreshToken = null; authPage('login'); });
   }
 
   function shell(content) {
@@ -217,7 +237,7 @@
 
   function addNote() { api('/api/notes', { method: 'POST', body: JSON.stringify({ title: document.getElementById('nt').value, content: document.getElementById('nc').value }) }).then(function (data) { notes.unshift(data.note); render(); }); }
   function addPost() { api('/api/forum', { method: 'POST', body: JSON.stringify({ title: document.getElementById('pt').value, content: document.getElementById('pc').value }) }).then(function (data) { posts.unshift(data.post); render(); }); }
-  function logout() { localStorage.removeItem('bloom-token'); token = null; me = null; authPage('login'); }
+  function logout() { var currentRefresh = refreshToken; token = null; refreshToken = null; localStorage.removeItem('bloom-token'); localStorage.removeItem('bloom-refresh-token'); me = null; if (currentRefresh) fetch('/api/auth/logout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refreshToken: currentRefresh }) }).catch(function () {}); authPage('login'); }
   function admin() { api('/api/admin/stats').then(function (stats) { app.innerHTML = '<main class="main"><section class="card"><div class="brand">AI <b>BLOOM</b></div><h1>运营控制台</h1><div class="stats"><div class="stat"><b>' + stats.users + '</b><span>用户</span></div><div class="stat"><b>' + stats.records + '</b><span>打卡</span></div><div class="stat"><b>' + stats.posts + '</b><span>帖子</span></div></div><button class="btn ghost" onclick="logout()">退出</button></section></main>'; }); }
 
   window.authPage = authPage;
