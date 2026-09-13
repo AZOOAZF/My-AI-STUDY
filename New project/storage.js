@@ -5,6 +5,7 @@ const DB = path.join(__dirname, 'data.json');
 const SUPABASE_URL = String(process.env.SUPABASE_URL || '').replace(/\/$/, '');
 const SUPABASE_SECRET_KEY = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const USE_SUPABASE = Boolean(SUPABASE_URL && SUPABASE_SECRET_KEY);
+let fallbackData;
 
 function normalize(d, seedTasks) {
   d = d && typeof d === 'object' ? d : {};
@@ -60,33 +61,43 @@ function headers(extra = {}) {
 }
 
 async function load(seedTasks) {
+  if (fallbackData) return normalize(fallbackData, seedTasks);
   if (!USE_SUPABASE) return localData(seedTasks);
-
-  const response = await fetch(`${SUPABASE_URL}/rest/v1/app_state?id=eq.main&select=data`, {
-    headers: headers(),
-  });
-  if (!response.ok) throw new Error(`Supabase read failed: ${response.status} ${await response.text()}`);
-
-  const rows = await response.json();
-  if (rows[0]?.data) return normalize(rows[0].data, seedTasks);
-
-  const initial = localData(seedTasks);
-  await save(initial);
-  return initial;
+  try {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/app_state?id=eq.main&select=data`, {
+      headers: headers(),
+    });
+    if (!response.ok) throw new Error(`Supabase read failed: ${response.status}`);
+    const rows = await response.json();
+    if (rows[0]?.data) return normalize(rows[0].data, seedTasks);
+    const initial = localData(seedTasks);
+    await save(initial);
+    return initial;
+  } catch (error) {
+    console.error('[storage] Supabase read unavailable:', error.message);
+    fallbackData = localData(seedTasks);
+    return fallbackData;
+  }
 }
 
 async function save(data) {
   if (!USE_SUPABASE) {
-    fs.writeFileSync(DB, JSON.stringify(data, null, 2));
+    fallbackData = data;
+    try { fs.writeFileSync(DB, JSON.stringify(data, null, 2)); } catch (error) { console.error('[storage] local write unavailable:', error.message); }
     return;
   }
-
-  const response = await fetch(`${SUPABASE_URL}/rest/v1/app_state?on_conflict=id`, {
-    method: 'POST',
-    headers: headers({ Prefer: 'resolution=merge-duplicates,return=minimal' }),
-    body: JSON.stringify([{ id: 'main', data, updated_at: new Date().toISOString() }]),
-  });
-  if (!response.ok) throw new Error(`Supabase write failed: ${response.status} ${await response.text()}`);
+  try {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/app_state?on_conflict=id`, {
+      method: 'POST',
+      headers: headers({ Prefer: 'resolution=merge-duplicates,return=minimal' }),
+      body: JSON.stringify([{ id: 'main', data, updated_at: new Date().toISOString() }]),
+    });
+    if (!response.ok) throw new Error(`Supabase write failed: ${response.status}`);
+    fallbackData = data;
+  } catch (error) {
+    console.error('[storage] Supabase write unavailable:', error.message);
+    fallbackData = data;
+  }
 }
 
 module.exports = { load, save, USE_SUPABASE };

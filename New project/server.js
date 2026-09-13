@@ -17,6 +17,9 @@ const SMTP_PORT = Number(process.env.SMTP_PORT || 465);
 const SMTP_SECURE = String(process.env.SMTP_SECURE || 'true').toLowerCase() !== 'false';
 const SMTP_USER = process.env.SMTP_USER || '';
 const SMTP_PASS = process.env.SMTP_PASS || '';
+const SMTP_CONNECTION_TIMEOUT = Number(process.env.SMTP_CONNECTION_TIMEOUT || 5000);
+const SMTP_GREETING_TIMEOUT = Number(process.env.SMTP_GREETING_TIMEOUT || 5000);
+const SMTP_SOCKET_TIMEOUT = Number(process.env.SMTP_SOCKET_TIMEOUT || 10000);
 const EMAIL_FROM = process.env.EMAIL_FROM || (SMTP_USER ? `AI Bloom <${SMTP_USER}>` : 'AI Bloom <onboarding@resend.dev>');
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || '';
@@ -56,7 +59,7 @@ function emailUnavailableReason(){
 }
 async function deliverEmail(to,subject,html){
   if(EMAIL_PROVIDER==='smtp'){
-    smtpTransport ??= nodemailer.createTransport({host:SMTP_HOST,port:SMTP_PORT,secure:SMTP_SECURE,auth:{user:SMTP_USER,pass:SMTP_PASS},disableFileAccess:true,disableUrlAccess:true});
+    smtpTransport ??= nodemailer.createTransport({host:SMTP_HOST,port:SMTP_PORT,secure:SMTP_SECURE,auth:{user:SMTP_USER,pass:SMTP_PASS},connectionTimeout:SMTP_CONNECTION_TIMEOUT,greetingTimeout:SMTP_GREETING_TIMEOUT,socketTimeout:SMTP_SOCKET_TIMEOUT,disableFileAccess:true,disableUrlAccess:true});
     await smtpTransport.sendMail({from:EMAIL_FROM,to,subject,html});
     return;
   }
