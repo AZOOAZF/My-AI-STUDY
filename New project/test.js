@@ -128,3 +128,9 @@ test('long-lived login uses a revocable refresh token', () => {
   assert.match(storage, /d\.refreshTokens \?\?=/);
   assert.match(app, /bloom-refresh-token/);
 });
+
+test('auth page uses a soft pink-purple gradient theme', () => {
+  const page = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
+  assert.match(page, /linear-gradient\(135deg,#735caa 0%,#a45b9b 52%,#d17b9a 100%\)/);
+  assert.match(page, /linear-gradient\(135deg,#f8edf6 0%,#f2effb 100%\)/);
+});
