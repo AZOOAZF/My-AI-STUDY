@@ -145,8 +145,14 @@ test('daily learning assessment has fill, choice, and response sections', () => 
   assert.match(app, /应答题/);
   assert.match(app, /共 100 题/);
   assert.match(app, /34 填空、33 选择、33 应答/);
-  assert.match(server, /paper\.length!==100/);
-  assert.match(server, /counts\.fill!==34/);
+  assert.match(server, /paper\.length!==total/);
+  assert.match(server, /counts\.fill!==typeTotals\.fill/);
+  assert.match(server, /kind==='weekly'/);
+  assert.match(app, /weekly-fill-/);
+  assert.match(app, /查看答案与解析/);
+  assert.match(app, /quizChart/);
+  assert.match(app, /weeklyQuizPage/);
+  assert.match(app, /typeTotals/);
   assert.match(app, /api\/quiz-results/);
   assert.match(server, /api\/quiz-results/);
   assert.match(storage, /d\.quizResults \?\?=/);
