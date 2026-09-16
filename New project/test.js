@@ -134,3 +134,16 @@ test('auth page uses a soft pink-purple gradient theme', () => {
   assert.match(page, /linear-gradient\(90deg,#cbb9e0 0%,#d9c0dc 46%,#e9c8d9 100%\)/);
   assert.match(page, /background:rgba\(255,255,255,.16\)/);
 });
+
+test('daily learning assessment has fill, choice, and response sections', () => {
+  const app = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
+  const server = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  const storage = fs.readFileSync(path.join(__dirname, 'storage.js'), 'utf8');
+  assert.match(app, /学习检测/);
+  assert.match(app, /填空题/);
+  assert.match(app, /选择题/);
+  assert.match(app, /应答题/);
+  assert.match(app, /api\/quiz-results/);
+  assert.match(server, /api\/quiz-results/);
+  assert.match(storage, /d\.quizResults \?\?=/);
+});

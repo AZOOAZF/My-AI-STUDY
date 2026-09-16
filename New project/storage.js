@@ -19,6 +19,7 @@ function normalize(d, seedTasks) {
   d.emailJobs ??= [];
   d.authCodes ??= {};
   d.refreshTokens ??= {};
+  d.quizResults ??= {};
   const sourceTasks = d.tasks?.length ? d.tasks : seedTasks();
   d.tasks = sourceTasks.slice(0, 56).map((task, index) => {
     const { date, ...rest } = task || {};

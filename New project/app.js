@@ -7,6 +7,8 @@
   var progress = {};
   var notes = [];
   var posts = [];
+  var quizResults = {};
+  var quizDay = Number(localStorage.getItem('bloom-quiz-day')) || 1;
   var tab = '课程学习';
   var authMode = 'login';
   var authMethod = 'code';
@@ -122,12 +124,13 @@
   }
 
   function boot() {
-    Promise.all([api('/api/me'), api('/api/tasks'), api('/api/progress'), api('/api/notes'), api('/api/forum')]).then(function (items) {
+    Promise.all([api('/api/me'), api('/api/tasks'), api('/api/progress'), api('/api/notes'), api('/api/forum'), api('/api/quiz-results')]).then(function (items) {
       me = items[0].user;
       tasks = items[1].tasks || [];
       progress = items[2].progress || {};
       notes = items[3].notes || [];
       posts = items[4].posts || [];
+      quizResults = items[5].results || {};
       if (me.role !== 'admin' && !me.profileCompleted) { profilePage(true); return; }
       if (me.role !== 'admin' && !me.passwordSet && !passwordPromptSkipped) { passwordSetupPage(false); return; }
       render();
@@ -135,7 +138,7 @@
   }
 
   function shell(content) {
-    app.innerHTML = '<header class="top"><div class="brand">AI <b>BLOOM</b></div><nav class="tags">' + ['课程学习', '学习笔记', '问题论坛', '我的'].map(function (item) { return '<button class="' + (tab === item ? 'active' : '') + '" onclick="switchTab(\'' + item + '\')">' + item + '</button>'; }).join('') + '</nav><div class="avatar">' + esc((me.nickname || me.email || '?')[0].toUpperCase()) + '</div></header><main class="main">' + content + '</main>';
+    app.innerHTML = '<header class="top"><div class="brand">AI <b>BLOOM</b></div><nav class="tags">' + ['课程学习', '学习检测', '学习笔记', '问题论坛', '我的'].map(function (item) { return '<button class="' + (tab === item ? 'active' : '') + '" onclick="switchTab(\'' + item + '\')">' + item + '</button>'; }).join('') + '</nav><div class="avatar">' + esc((me.nickname || me.email || '?')[0].toUpperCase()) + '</div></header><main class="main">' + content + '</main>';
   }
 
   function progressFor(task) { return progress[String(task.day || task.id)] || {}; }
@@ -145,6 +148,7 @@
     if (!me.profileCompleted) return profilePage(true);
     if (!me.passwordSet && !passwordPromptSkipped) return passwordSetupPage(false);
     if (tab === '学习笔记') return notesPage();
+    if (tab === '学习检测') return quizPage(quizDay);
     if (tab === '问题论坛') return forumPage();
     if (tab === '我的') return profilePage(false);
     var done = Object.values(progress).filter(function (item) { return item.done; }).length;
@@ -231,6 +235,32 @@
     api('/api/progress', { method: 'POST', body: JSON.stringify({ day: Number(day), done: !record.done, minutes: 120, note: record.note || '' }) }).then(function (data) { progress[key] = data.progress; render(); });
   }
 
+  function quizOptions(task) {
+    var answer = String(task.answer || '自测');
+    var pool = tasks.map(function (item) { return String(item.answer || ''); }).filter(function (item) { return item && item !== answer; });
+    var options = [answer];
+    for (var i = 0; i < pool.length && options.length < 4; i++) if (options.indexOf(pool[(i + task.day) % pool.length]) < 0) options.push(pool[(i + task.day) % pool.length]);
+    return options;
+  }
+
+  function quizPage(day) {
+    quizDay = Math.min(56, Math.max(1, Number(day) || 1));
+    localStorage.setItem('bloom-quiz-day', String(quizDay));
+    var task = tasks.find(function (item) { return Number(item.day) === quizDay; }) || tasks[0];
+    if (!task) return shell('<div class="empty">课程数据加载中...</div>');
+    var result = quizResults[String(task.day)];
+    var options = quizOptions(task);
+    var optionHtml = options.map(function (option, index) { return '<label class="quiz-option"><input type="radio" name="quizChoice" value="' + esc(option) + '"> <b>' + String.fromCharCode(65 + index) + '.</b> ' + esc(option) + '</label>'; }).join('');
+    shell('<div class="welcome"><div><div class="eyebrow">DAILY ASSESSMENT</div><h1>学习检测</h1><p class="muted">每一天一张小试卷，完成后记录你的掌握程度。</p></div><div class="quiz-toolbar"><label for="quizDay">选择天数</label><select id="quizDay" onchange="quizPage(this.value)">' + tasks.map(function (item) { return '<option value="' + item.day + '" ' + (item.day === task.day ? 'selected' : '') + '>第 ' + item.day + ' 天</option>'; }).join('') + '</select></div></div><section class="card quiz-paper"><div class="quiz-paper-head"><div><div class="eyebrow">第 ' + task.day + ' 天 · ' + esc(task.module) + '</div><h2>' + esc(task.title) + '</h2><p class="muted">' + esc(task.description) + '</p></div>' + (result ? '<div class="quiz-score">最近得分 <b>' + result.score + '</b>/100</div>' : '') + '</div><section class="quiz-section"><h3>一、填空题 <span>30 分</span></h3><p>' + esc(task.question || task.title) + '</p><input id="quizFill" placeholder="填写你的答案" autocomplete="off"></section><section class="quiz-section"><h3>二、选择题 <span>30 分</span></h3><p>' + esc(task.question || task.title) + '</p><div class="quiz-options">' + optionHtml + '</div></section><section class="quiz-section"><h3>三、应答题 <span>40 分</span></h3><p>' + esc(task.practice || '请结合当天课程，写出你的理解、步骤或应用场景。') + '</p><textarea id="quizResponse" rows="6" placeholder="写下你的思路（建议 20 字以上）"></textarea></section><div class="save-row"><span id="quizMsg" class="form-error">' + (result ? '上次提交：' + (result.fillCorrect ? '填空正确' : '填空待复习') + ' · ' + (result.choiceCorrect ? '选择正确' : '选择待复习') : '完成三部分后提交试卷') + '</span><button class="btn" onclick="submitQuiz(' + task.day + ')">提交试卷</button></div></section>');
+  }
+
+  function submitQuiz(day) {
+    var message = document.getElementById('quizMsg');
+    var choice = document.querySelector('input[name=quizChoice]:checked');
+    message.textContent = '提交中...';
+    api('/api/quiz-results', { method: 'POST', body: JSON.stringify({ day: Number(day), fillAnswer: document.getElementById('quizFill').value, choiceAnswer: choice ? choice.value : '', response: document.getElementById('quizResponse').value }) }).then(function (data) { quizResults[String(day)] = data.result; quizPage(day); }).catch(function (error) { message.textContent = error.message; });
+  }
+
   function notesPage() { shell('<div class="welcome"><div><div class="eyebrow">YOUR NOTES</div><h1>学习笔记</h1><p class="muted">把今天的理解变成明天的捷径。</p></div></div><div class="grid"><section class="card"><h2>写一条新笔记</h2><div class="field"><input id="nt" placeholder="标题"></div><div class="field"><textarea id="nc" rows="7" placeholder="记录概念、代码或灵感"></textarea></div><button class="btn" onclick="addNote()">保存笔记</button></section><section class="card"><h2>最近笔记</h2>' + (notes.length ? notes.map(function (note) { return '<div class="note"><div><b>' + esc(note.title) + '</b><p class="muted">' + esc(note.content) + '</p></div></div>'; }).join('') : '<div class="empty">还没有笔记。</div>') + '</section></div>'); }
 
   function forumPage() { shell('<div class="welcome"><div><div class="eyebrow">COMMUNITY</div><h1>问题论坛</h1><p class="muted">提问、交流，一起解决学习卡点。</p></div></div><section class="card"><div class="field"><input id="pt" placeholder="问题标题"></div><div class="field"><textarea id="pc" rows="3" placeholder="描述你的问题"></textarea></div><button class="btn" onclick="addPost()">发布问题</button>' + (posts.length ? posts.map(function (post) { return '<div class="post"><div><b>' + esc(post.title) + '</b><p>' + esc(post.content) + '</p><span class="muted">' + esc(post.author) + '</span></div></div>'; }).join('') : '<div class="empty">论坛还很安静，来发起第一个问题。</div>') + '</section>'); }
@@ -250,6 +280,8 @@
   window.passwordSetupPage = passwordSetupPage;
   window.saveProfile = saveProfile;
   window.switchTab = switchTab;
+  window.quizPage = quizPage;
+  window.submitQuiz = submitQuiz;
   window.toggle = toggle;
   window.addNote = addNote;
   window.addPost = addPost;

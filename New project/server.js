@@ -62,6 +62,7 @@ function verifyPassword(password,encoded){try{const [scheme,n,r,p,salt,expected]
 function progressKey(value){const raw=String(value??'').trim();if(/^\d+$/.test(raw)){const day=Number(raw);if(day>=1&&day<=56)return String(day);}const match=/^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);if(match){const start=Date.UTC(2026,8,3),current=Date.UTC(Number(match[1]),Number(match[2])-1,Number(match[3]));const day=Math.floor((current-start)/86400000)+1;if(day>=1&&day<=56)return String(day);}return raw;
 }
 function validCurrency(x){return ['usd','cny'].includes(String(x||'').toLowerCase());}
+function quizAnswer(value){return String(value||'').trim().toLowerCase().replace(/\s+/g,'');}
 function logError(context,error){console.error(JSON.stringify({time:new Date().toISOString(),context,error:String(error.message||error)}));}
 function emailUnavailableReason(){
   if(EMAIL_PROVIDER==='smtp'&&(!SMTP_USER||!SMTP_PASS))return 'SMTP_USER 或 SMTP_PASS 未配置';
@@ -166,6 +167,13 @@ async function app(req,res){
   }
   if(req.method==='GET'&&u.pathname==='/api/me')return send(res,200,{user:me.role==='admin'?me:publicUser(d.users[me.email]||me)});
   if(req.method==='GET'&&u.pathname==='/api/progress')return send(res,200,{progress:d.progress[me.email]||{}});
+  if(req.method==='GET'&&u.pathname==='/api/quiz-results')return send(res,200,{results:d.quizResults[me.email]||{}});
+  if(req.method==='POST'&&u.pathname==='/api/quiz-results'){
+    const b=await readBody(req),day=Number(b.day),task=d.tasks.find(item=>item.day===day);if(!Number.isInteger(day)||day<1||day>56||!task)return send(res,400,{error:'测验日必须是第 1-56 天'});
+    const fill=String(b.fillAnswer||'').slice(0,300),choice=String(b.choiceAnswer||'').slice(0,300),response=String(b.response||'').trim().slice(0,5000);if(!fill||!choice||!response)return send(res,400,{error:'请完成填空、选择和应答题后再提交'});
+    const fillCorrect=quizAnswer(fill)===quizAnswer(task.answer),choiceCorrect=quizAnswer(choice)===quizAnswer(task.answer),responsePoints=response.length>=20?40:20,score=(fillCorrect?30:0)+(choiceCorrect?30:0)+responsePoints;
+    d.quizResults[me.email]??={};d.quizResults[me.email][String(day)]={day,score,fillCorrect,choiceCorrect,responsePoints,submittedAt:new Date().toISOString()};await save(d);return send(res,200,{result:d.quizResults[me.email][String(day)]});
+  }
   if(req.method==='POST'&&u.pathname==='/api/progress'){const b=await readBody(req),day=progressKey(b.day??b.taskId??b.date),minutes=Number(b.minutes);if(!/^([1-9]|[1-5][0-9]|56)$/.test(day))return send(res,400,{error:'打卡日必须是第 1-56 天'});if(!Number.isFinite(minutes)||minutes<0||minutes>1440)return send(res,400,{error:'学习时长必须是 0-1440 分钟'});if(String(b.note||'').length>2000)return send(res,400,{error:'复盘内容不能超过 2000 个字符'});d.progress[me.email]??={};d.progress[me.email][day]={day:Number(day),done:!!b.done,minutes,note:String(b.note||'')};await save(d);return send(res,200,{progress:d.progress[me.email][day]})}
   if(req.method==='GET'&&u.pathname==='/api/notes')return send(res,200,{notes:d.notes[me.email]||[]});
   if(req.method==='POST'&&u.pathname==='/api/notes'){const b=await readBody(req),title=String(b.title||'未命名笔记').trim(),content=String(b.content||'');if(title.length>200||content.length>10000)return send(res,400,{error:'笔记标题最多 200 个字符，内容最多 10000 个字符'});d.notes[me.email]??=[];const n={id:Date.now(),title,content,tags:Array.isArray(b.tags)?b.tags.slice(0,12).map(x=>String(x).slice(0,40)):[],createdAt:new Date().toISOString()};d.notes[me.email].unshift(n);await save(d);return send(res,200,{note:n})}
