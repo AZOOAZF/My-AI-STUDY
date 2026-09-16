@@ -143,6 +143,10 @@ test('daily learning assessment has fill, choice, and response sections', () => 
   assert.match(app, /填空题/);
   assert.match(app, /选择题/);
   assert.match(app, /应答题/);
+  assert.match(app, /共 100 题/);
+  assert.match(app, /34 填空、33 选择、33 应答/);
+  assert.match(server, /paper\.length!==100/);
+  assert.match(server, /counts\.fill!==34/);
   assert.match(app, /api\/quiz-results/);
   assert.match(server, /api\/quiz-results/);
   assert.match(storage, /d\.quizResults \?\?=/);

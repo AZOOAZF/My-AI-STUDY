@@ -243,22 +243,36 @@
     return options;
   }
 
+  function buildQuizPaper(day) {
+    var paper = [], prefixes = ['请解释：', '请列出关键步骤：', '请结合一个实际场景说明：', '请写出一个常见错误及修复方式：'];
+    for (var i = 0; i < 34; i++) { var fillTask = tasks[(day - 1 + i) % tasks.length]; paper.push({ id: 'fill-' + i, type: 'fill', sourceDay: fillTask.day, prompt: '第 ' + fillTask.day + ' 天：' + (fillTask.question || fillTask.title), task: fillTask }); }
+    for (var j = 0; j < 33; j++) { var choiceTask = tasks[(day - 1 + j * 2) % tasks.length]; paper.push({ id: 'choice-' + j, type: 'choice', sourceDay: choiceTask.day, prompt: choiceTask.question || choiceTask.title, options: quizOptions(choiceTask), task: choiceTask }); }
+    for (var k = 0; k < 33; k++) { var responseTask = tasks[(day - 1 + k * 3) % tasks.length]; paper.push({ id: 'response-' + k, type: 'response', sourceDay: responseTask.day, prompt: prefixes[k % prefixes.length] + '第 ' + responseTask.day + ' 天的' + (responseTask.practice || responseTask.description), task: responseTask }); }
+    return paper;
+  }
+
   function quizPage(day) {
     quizDay = Math.min(56, Math.max(1, Number(day) || 1));
     localStorage.setItem('bloom-quiz-day', String(quizDay));
     var task = tasks.find(function (item) { return Number(item.day) === quizDay; }) || tasks[0];
     if (!task) return shell('<div class="empty">课程数据加载中...</div>');
-    var result = quizResults[String(task.day)];
-    var options = quizOptions(task);
-    var optionHtml = options.map(function (option, index) { return '<label class="quiz-option"><input type="radio" name="quizChoice" value="' + esc(option) + '"> <b>' + String.fromCharCode(65 + index) + '.</b> ' + esc(option) + '</label>'; }).join('');
-    shell('<div class="welcome"><div><div class="eyebrow">DAILY ASSESSMENT</div><h1>学习检测</h1><p class="muted">每一天一张小试卷，完成后记录你的掌握程度。</p></div><div class="quiz-toolbar"><label for="quizDay">选择天数</label><select id="quizDay" onchange="quizPage(this.value)">' + tasks.map(function (item) { return '<option value="' + item.day + '" ' + (item.day === task.day ? 'selected' : '') + '>第 ' + item.day + ' 天</option>'; }).join('') + '</select></div></div><section class="card quiz-paper"><div class="quiz-paper-head"><div><div class="eyebrow">第 ' + task.day + ' 天 · ' + esc(task.module) + '</div><h2>' + esc(task.title) + '</h2><p class="muted">' + esc(task.description) + '</p></div>' + (result ? '<div class="quiz-score">最近得分 <b>' + result.score + '</b>/100</div>' : '') + '</div><section class="quiz-section"><h3>一、填空题 <span>30 分</span></h3><p>' + esc(task.question || task.title) + '</p><input id="quizFill" placeholder="填写你的答案" autocomplete="off"></section><section class="quiz-section"><h3>二、选择题 <span>30 分</span></h3><p>' + esc(task.question || task.title) + '</p><div class="quiz-options">' + optionHtml + '</div></section><section class="quiz-section"><h3>三、应答题 <span>40 分</span></h3><p>' + esc(task.practice || '请结合当天课程，写出你的理解、步骤或应用场景。') + '</p><textarea id="quizResponse" rows="6" placeholder="写下你的思路（建议 20 字以上）"></textarea></section><div class="save-row"><span id="quizMsg" class="form-error">' + (result ? '上次提交：' + (result.fillCorrect ? '填空正确' : '填空待复习') + ' · ' + (result.choiceCorrect ? '选择正确' : '选择待复习') : '完成三部分后提交试卷') + '</span><button class="btn" onclick="submitQuiz(' + task.day + ')">提交试卷</button></div></section>');
+    var result = quizResults[String(task.day)], paper = buildQuizPaper(quizDay);
+    var sections = ['fill', 'choice', 'response'].map(function (type, sectionIndex) {
+      var title = sectionIndex === 0 ? '一、填空题' : sectionIndex === 1 ? '二、选择题' : '三、应答题';
+      var items = paper.filter(function (item) { return item.type === type; });
+      return '<section class="quiz-section"><h3>' + title + ' <span>' + items.length + ' 题</span></h3><div class="quiz-list">' + items.map(function (item, index) {
+        if (type === 'fill') return '<div class="quiz-item"><b>' + (index + 1) + '.</b> ' + esc(item.prompt) + '<input id="' + item.id + '" placeholder="填写答案" autocomplete="off"></div>';
+        if (type === 'choice') return '<div class="quiz-item"><p><b>' + (index + 1) + '.</b> ' + esc(item.prompt) + '</p><div class="quiz-options">' + item.options.map(function (option, optionIndex) { return '<label class="quiz-option"><input type="radio" name="' + item.id + '" value="' + esc(option) + '"> <b>' + String.fromCharCode(65 + optionIndex) + '.</b> ' + esc(option) + '</label>'; }).join('') + '</div></div>';
+        return '<div class="quiz-item"><b>' + (index + 1) + '.</b> ' + esc(item.prompt) + '<textarea id="' + item.id + '" rows="3" placeholder="写下你的回答"></textarea></div>';
+      }).join('') + '</div></section>';
+    }).join('');
+    shell('<div class="welcome"><div><div class="eyebrow">DAILY ASSESSMENT</div><h1>学习检测</h1><p class="muted">第 ' + quizDay + ' 天试卷 · 共 100 题（34 填空、33 选择、33 应答）</p></div><div class="quiz-toolbar"><label for="quizDay">选择天数</label><select id="quizDay" onchange="quizPage(this.value)">' + tasks.map(function (item) { return '<option value="' + item.day + '" ' + (item.day === task.day ? 'selected' : '') + '>第 ' + item.day + ' 天</option>'; }).join('') + '</select></div></div><section class="card quiz-paper"><div class="quiz-paper-head"><div><div class="eyebrow">第 ' + task.day + ' 天 · ' + esc(task.module) + '</div><h2>' + esc(task.title) + '</h2><p class="muted">' + esc(task.description) + '</p></div>' + (result ? '<div class="quiz-score">最近得分 <b>' + result.score + '</b>/100</div>' : '') + '</div>' + sections + '<div class="save-row"><span id="quizMsg" class="form-error">' + (result ? '上次提交：' + result.correct + '/' + result.total + ' 题正确或已完成' : '完成 100 题后提交试卷') + '</span><button class="btn" onclick="submitQuiz(' + task.day + ')">提交试卷</button></div></section>');
   }
 
   function submitQuiz(day) {
-    var message = document.getElementById('quizMsg');
-    var choice = document.querySelector('input[name=quizChoice]:checked');
+    var message = document.getElementById('quizMsg'), paper = buildQuizPaper(Number(day)), answers = paper.map(function (item) { var input = item.type === 'choice' ? document.querySelector('input[name="' + item.id + '"]:checked') : document.getElementById(item.id); return { id: item.id, type: item.type, sourceDay: item.sourceDay, value: input ? input.value : '' }; });
     message.textContent = '提交中...';
-    api('/api/quiz-results', { method: 'POST', body: JSON.stringify({ day: Number(day), fillAnswer: document.getElementById('quizFill').value, choiceAnswer: choice ? choice.value : '', response: document.getElementById('quizResponse').value }) }).then(function (data) { quizResults[String(day)] = data.result; quizPage(day); }).catch(function (error) { message.textContent = error.message; });
+    api('/api/quiz-results', { method: 'POST', body: JSON.stringify({ day: Number(day), answers: answers }) }).then(function (data) { quizResults[String(day)] = data.result; quizPage(day); }).catch(function (error) { message.textContent = error.message; });
   }
 
   function notesPage() { shell('<div class="welcome"><div><div class="eyebrow">YOUR NOTES</div><h1>学习笔记</h1><p class="muted">把今天的理解变成明天的捷径。</p></div></div><div class="grid"><section class="card"><h2>写一条新笔记</h2><div class="field"><input id="nt" placeholder="标题"></div><div class="field"><textarea id="nc" rows="7" placeholder="记录概念、代码或灵感"></textarea></div><button class="btn" onclick="addNote()">保存笔记</button></section><section class="card"><h2>最近笔记</h2>' + (notes.length ? notes.map(function (note) { return '<div class="note"><div><b>' + esc(note.title) + '</b><p class="muted">' + esc(note.content) + '</p></div></div>'; }).join('') : '<div class="empty">还没有笔记。</div>') + '</section></div>'); }
