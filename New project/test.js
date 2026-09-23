@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
 const http = require('http');
+const { spawnSync } = require('node:child_process');
 
 function withServer(run) {
   const { app } = require('./server');
@@ -26,6 +27,13 @@ test('email templates do not expose secrets', () => {
 test('data file has no payment secrets', () => {
   const text = fs.readFileSync(path.join(__dirname, 'data.json'), 'utf8');
   assert.equal(/sk_(test|live)_|whsec_|re_[A-Za-z0-9]/.test(text), false);
+});
+
+test('production refuses to use ephemeral profile storage', () => {
+  const script = "delete process.env.SUPABASE_URL;delete process.env.SUPABASE_SECRET_KEY;delete process.env.SUPABASE_SERVICE_ROLE_KEY;process.env.VERCEL_ENV='production';require('./storage').load(()=>[]).then(()=>process.exit(1)).catch(error=>{if(error.statusCode!==503)process.exit(2);console.log(error.message)})";
+  const result = spawnSync(process.execPath, ['-e', script], { cwd: __dirname, encoding: 'utf8' });
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(result.stdout, /持久化数据库/);
 });
 
 test('login UI has email registration without an admin entry', () => {

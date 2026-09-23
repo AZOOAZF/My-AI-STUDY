@@ -4,8 +4,16 @@ const path = require('path');
 const DB = path.join(__dirname, 'data.json');
 const SUPABASE_URL = String(process.env.SUPABASE_URL || '').replace(/\/$/, '');
 const SUPABASE_SECRET_KEY = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const USE_SUPABASE = Boolean(SUPABASE_URL && SUPABASE_SECRET_KEY);
+const IS_PRODUCTION = process.env.NODE_ENV === 'production' || process.env.CONTEXT === 'production' || process.env.VERCEL_ENV === 'production';
+const USE_SUPABASE = /^https:\/\/[a-z0-9]+\.supabase\.co$/i.test(SUPABASE_URL) && Boolean(SUPABASE_SECRET_KEY);
 let fallbackData;
+
+function unavailable(reason) {
+  console.error('[storage] Persistent storage unavailable:', reason);
+  const error = new Error('持久化数据库暂时不可用，请联系网站管理员');
+  error.statusCode = 503;
+  return error;
+}
 
 function normalize(d, seedTasks) {
   d = d && typeof d === 'object' ? d : {};
@@ -63,8 +71,11 @@ function headers(extra = {}) {
 }
 
 async function load(seedTasks) {
-  if (fallbackData) return normalize(fallbackData, seedTasks);
-  if (!USE_SUPABASE) return localData(seedTasks);
+  if (!USE_SUPABASE) {
+    if (IS_PRODUCTION) throw unavailable('Supabase configuration is missing or invalid');
+    if (fallbackData) return normalize(fallbackData, seedTasks);
+    return localData(seedTasks);
+  }
   try {
     const response = await fetch(`${SUPABASE_URL}/rest/v1/app_state?id=eq.main&select=data`, {
       headers: headers(),
@@ -77,6 +88,7 @@ async function load(seedTasks) {
     return initial;
   } catch (error) {
     console.error('[storage] Supabase read unavailable:', error.message);
+    if (IS_PRODUCTION) throw unavailable(error.message);
     fallbackData = localData(seedTasks);
     return fallbackData;
   }
@@ -84,6 +96,7 @@ async function load(seedTasks) {
 
 async function save(data) {
   if (!USE_SUPABASE) {
+    if (IS_PRODUCTION) throw unavailable('Supabase configuration is missing or invalid');
     fallbackData = data;
     try { fs.writeFileSync(DB, JSON.stringify(data, null, 2)); } catch (error) { console.error('[storage] local write unavailable:', error.message); }
     return;
@@ -98,6 +111,7 @@ async function save(data) {
     fallbackData = data;
   } catch (error) {
     console.error('[storage] Supabase write unavailable:', error.message);
+    if (IS_PRODUCTION) throw unavailable(error.message);
     fallbackData = data;
   }
 }

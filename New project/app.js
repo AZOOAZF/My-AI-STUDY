@@ -135,7 +135,13 @@
       if (me.role !== 'admin' && !me.profileCompleted) { profilePage(true); return; }
       if (me.role !== 'admin' && !me.passwordSet && !passwordPromptSkipped) { passwordSetupPage(false); return; }
       render();
-  }).catch(function () { localStorage.removeItem('bloom-token'); localStorage.removeItem('bloom-refresh-token'); token = null; refreshToken = null; authPage('login'); });
+  }).catch(function (error) {
+    if (String(error.message || '').includes('持久化数据库')) {
+      app.innerHTML = '<main class="main onboarding"><section class="card"><div class="brand">AI <b>BLOOM</b></div><h1>数据服务暂时不可用</h1><p class="muted">用户资料仍未完成持久化连接，请稍后重试或联系管理员。当前登录状态不会被清除。</p><button class="btn" onclick="location.reload()">重新加载</button></section></main>';
+      return;
+    }
+    localStorage.removeItem('bloom-token'); localStorage.removeItem('bloom-refresh-token'); token = null; refreshToken = null; authPage('login');
+  });
   }
 
   function shell(content) {

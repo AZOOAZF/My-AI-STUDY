@@ -196,5 +196,5 @@ async function app(req,res){
 }
 module.exports = { app };
 if (require.main === module) {
-  http.createServer((req,res)=>app(req,res).catch(e=>{logError('request',e);send(res,e.statusCode||500,{error:e.statusCode===413?'请求体过大':'服务器内部错误'})})).listen(PORT,()=>console.log('AI Bloom server: http://localhost:'+PORT));
+  http.createServer((req,res)=>app(req,res).catch(e=>{logError('request',e);send(res,e.statusCode||500,{error:e.statusCode===413?'请求体过大':e.statusCode===503?e.message:'服务器内部错误'})})).listen(PORT,()=>console.log('AI Bloom server: http://localhost:'+PORT));
 }
