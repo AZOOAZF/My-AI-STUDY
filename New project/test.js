@@ -77,10 +77,10 @@ test('check-ins use a 56-day table instead of calendar dates', () => {
   const server = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
   const storage = fs.readFileSync(path.join(__dirname, 'storage.js'), 'utf8');
   const app = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
-  assert.match(server, /day:i\+1/);
+  assert.match(storage, /function enrichTask/);
   assert.match(server, /打卡日必须是第 1-56 天/);
-  assert.match(storage, /day: index \+ 1/);
-  assert.match(app, /56 天打卡表/);
+  assert.match(storage, /const day = index \+ 1/);
+  assert.match(app, /56 DAY LEARNING PATH/);
   assert.match(app, /第 ' \+ task\.day \+ ' 天/);
 });
 
@@ -151,12 +151,12 @@ test('daily learning assessment has fill, choice, and response sections', () => 
   assert.match(app, /填空题/);
   assert.match(app, /选择题/);
   assert.match(app, /应答题/);
-  assert.match(app, /共 100 题/);
+  assert.match(app, /100 题全部对应当天课程/);
   assert.match(app, /34 填空、33 选择、33 应答/);
   assert.match(server, /paper\.length!==total/);
   assert.match(server, /counts\.fill!==typeTotals\.fill/);
   assert.match(server, /kind==='weekly'/);
-  assert.match(app, /weekly-fill-/);
+  assert.match(app, /factualItem\(weekTasks\[i\], 'fill', i, true\)/);
   assert.match(app, /查看答案与解析/);
   assert.match(app, /quizChart/);
   assert.match(app, /weeklyQuizPage/);
@@ -164,4 +164,35 @@ test('daily learning assessment has fill, choice, and response sections', () => 
   assert.match(app, /api\/quiz-results/);
   assert.match(server, /api\/quiz-results/);
   assert.match(storage, /d\.quizResults \?\?=/);
+});
+
+test('daily courses expose a clear lesson plan and aligned quiz facts', async () => {
+  await withServer(async base => {
+    const response = await fetch(base + '/api/tasks');
+    const data = await response.json();
+    assert.equal(data.tasks.length, 56);
+    for (const task of data.tasks) {
+      assert.equal(task.outcomes.length, 3);
+      assert.equal(task.agenda.length, 4);
+      assert.equal(task.quizFacts.length, 5);
+      assert.ok(task.deliverable);
+    }
+  });
+  const app = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
+  const server = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  assert.match(app, /var task = tasks\.find\(function \(item\) \{ return Number\(item\.day\) === Number\(day\); \}\)/);
+  assert.equal(app.includes("tasks[(day - 1 + i) % tasks.length]"), false);
+  assert.match(server, /kind==='daily'&&task\.day!==period/);
+  assert.match(app, /\[30, 60, 90\][\s\S]*options\.length < 4/);
+});
+
+test('app build includes installable PWA assets', () => {
+  const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, 'manifest.webmanifest'), 'utf8'));
+  const worker = fs.readFileSync(path.join(__dirname, 'service-worker.js'), 'utf8');
+  const page = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
+  assert.equal(manifest.display, 'standalone');
+  assert.ok(manifest.icons.some(icon => icon.src === '/app-icon.png'));
+  assert.match(worker, /url\.pathname\.startsWith\('\/api\/'\)/);
+  assert.match(page, /rel="manifest"/);
+  assert.match(page, /apple-mobile-web-app-capable/);
 });

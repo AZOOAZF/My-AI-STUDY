@@ -15,6 +15,38 @@ function unavailable(reason) {
   return error;
 }
 
+function enrichTask(task, index) {
+  const day = index + 1;
+  const week = Math.floor(index / 7) + 1;
+  const minutes = Number(task.minutes) || 120;
+  const quizFacts = [
+    { prompt: task.question || `第 ${day} 天最重要的知识点是什么？`, answer: task.answer || task.title, explanation: task.description || task.title },
+    { prompt: `第 ${day} 天的课程主题是什么？`, answer: task.title, explanation: `本日围绕“${task.title}”展开。` },
+    { prompt: `“${task.title}”属于哪个学习模块？`, answer: task.module, explanation: `课程路径将本日归入“${task.module}”。` },
+    { prompt: `第 ${day} 天建议投入多少分钟？`, answer: String(minutes), explanation: `理解、跟做、实操和复盘合计 ${minutes} 分钟。` },
+    { prompt: `第 ${day} 天使用的主要学习资料是什么？`, answer: task.source || '课程资料', explanation: `课程入口来自“${task.source || '课程资料'}”。` },
+  ];
+  return {
+    ...task,
+    id: day,
+    day,
+    week,
+    outcomes: [
+      `能用自己的话解释“${task.title}”`,
+      `能独立完成：${task.practice || task.description}`,
+      `能回答：${task.question || `什么是${task.title}`}`,
+    ],
+    agenda: [
+      { label: '理解概念', minutes: 25, detail: task.description || `理解${task.title}的核心概念。` },
+      { label: '跟做示例', minutes: 25, detail: `打开${task.source || '课程资料'}，跟随一个完整示例。` },
+      { label: '独立实操', minutes: 50, detail: task.practice || `独立完成一个${task.title}练习。` },
+      { label: '检测复盘', minutes: 20, detail: task.masteryTarget || '完成检测并记录一个错误与改进。' },
+    ],
+    deliverable: task.practice || `提交一份${task.title}练习结果。`,
+    quizFacts,
+  };
+}
+
 function normalize(d, seedTasks) {
   d = d && typeof d === 'object' ? d : {};
   d.users ??= {};
@@ -28,10 +60,13 @@ function normalize(d, seedTasks) {
   d.authCodes ??= {};
   d.refreshTokens ??= {};
   d.quizResults ??= {};
-  const sourceTasks = d.tasks?.length ? d.tasks : seedTasks();
+  const savedTasks = Array.isArray(d.tasks) ? d.tasks : [];
+  const canonicalTasks = seedTasks();
+  const sourceTasks = canonicalTasks.length ? canonicalTasks : savedTasks;
   d.tasks = sourceTasks.slice(0, 56).map((task, index) => {
     const { date, ...rest } = task || {};
-    return { ...rest, id: index + 1, day: index + 1, week: Math.floor(index / 7) + 1 };
+    const saved = savedTasks[index] || {};
+    return enrichTask({ ...saved, ...rest }, index);
   });
   for (const email of Object.keys(d.progress)) {
     const records = d.progress[email] || {};

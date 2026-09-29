@@ -1,0 +1,21 @@
+{
+  "name": "AI Bloom 学习社区",
+  "short_name": "AI Bloom",
+  "description": "56 天 AI 学习、检测、笔记与社区应用",
+  "lang": "zh-CN",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f1e9f5",
+  "theme_color": "#8f6bb3",
+  "categories": ["education", "productivity"],
+  "icons": [
+    {
+      "src": "/app-icon.png",
+      "sizes": "1536x1536",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

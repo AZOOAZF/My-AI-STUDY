@@ -9,7 +9,9 @@
   var posts = [];
   var quizResults = {};
   var quizDay = Number(localStorage.getItem('bloom-quiz-day')) || 1;
+  var courseDay = Number(localStorage.getItem('bloom-course-day')) || 0;
   var quizMode = 'daily';
+  var installPrompt;
   var tab = '课程学习';
   var authMode = 'login';
   var authMethod = 'code';
@@ -145,7 +147,7 @@
   }
 
   function shell(content) {
-    app.innerHTML = '<header class="top"><div class="brand">AI <b>BLOOM</b></div><nav class="tags">' + ['课程学习', '学习检测', '学习笔记', '问题论坛', '我的'].map(function (item) { return '<button class="' + (tab === item ? 'active' : '') + '" onclick="switchTab(\'' + item + '\')">' + item + '</button>'; }).join('') + '</nav><div class="avatar">' + esc((me.nickname || me.email || '?')[0].toUpperCase()) + '</div></header><main class="main">' + content + '</main>';
+    app.innerHTML = '<header class="top"><div class="brand">AI <b>BLOOM</b></div><nav class="tags">' + ['课程学习', '学习检测', '学习笔记', '问题论坛', '我的'].map(function (item) { return '<button class="' + (tab === item ? 'active' : '') + '" onclick="switchTab(\'' + item + '\')">' + item + '</button>'; }).join('') + '</nav>' + (installPrompt ? '<button class="install-app" onclick="installApp()" title="安装到设备">安装应用</button>' : '') + '<div class="avatar">' + esc((me.nickname || me.email || '?')[0].toUpperCase()) + '</div></header><main class="main">' + content + '</main>';
   }
 
   function progressFor(task) { return progress[String(task.day || task.id)] || {}; }
@@ -158,14 +160,22 @@
     if (tab === '学习检测') return quizPage(quizDay);
     if (tab === '问题论坛') return forumPage();
     if (tab === '我的') return profilePage(false);
-    var done = Object.values(progress).filter(function (item) { return item.done; }).length;
-    var today = tasks.find(function (item) { return !progressFor(item).done; }) || tasks[0];
-    shell('<div class="welcome"><div><div class="eyebrow">HELLO, ' + esc(me.nickname || me.email.split('@')[0]) + '</div><h1>今天也要发光</h1><p class="muted">每学期按第 1 天到第 56 天，每天完成一次打卡。</p></div><button class="btn ghost" onclick="logout()">退出</button></div><div class="grid"><section><div class="card hero"><div class="eyebrow">DAY ' + today.day + ' · ' + esc(today.module) + '</div><h2>' + esc(today.title) + '</h2><p>' + esc(today.description) + '</p><button class="btn secondary" onclick="toggle(' + today.day + ')">' + (progressFor(today).done ? '第 ' + today.day + ' 天已完成 ✓' : '完成第 ' + today.day + ' 天打卡') + '</button></div><div class="stats"><div class="stat"><b>' + done + '</b><span>完成天数</span></div><div class="stat"><b>' + (tasks.length ? Math.round(done / tasks.length * 100) : 0) + '%</b><span>总进度</span></div><div class="stat"><b>' + Object.values(progress).reduce(function (sum, item) { return sum + (item.minutes || 0); }, 0) + '</b><span>累计分钟</span></div></div><div class="card"><h2>56 天打卡表</h2><div class="checkin-table-wrap"><table class="checkin-table"><thead><tr><th>天数</th><th>学习模块</th><th>当天任务</th><th>时长</th><th>状态</th><th>操作</th></tr></thead><tbody>' + tasks.map(taskRow).join('') + '</tbody></table></div></div></section><aside class="card"><h2>每周节奏</h2><p class="muted">每 7 天为一周，理论、案例、实操与复盘轮换。</p><div class="stats">' + [1, 2, 3, 4, 5, 6, 7, 8].map(function (week) { return '<div class="stat"><b>' + tasks.filter(function (task) { return task.week === week && progressFor(task).done; }).length + '</b><span>第 ' + week + ' 周</span></div>'; }).join('') + '</div></aside></div>');
+    coursePage(courseDay);
   }
 
-  function taskRow(task) {
-    var record = progressFor(task);
-    return '<tr><td><span class="day-badge">第 ' + task.day + ' 天</span><div class="task-meta">第 ' + task.week + ' 周</div></td><td>' + esc(task.module) + '</td><td><strong>' + esc(task.title) + '</strong><div class="task-meta">' + esc(task.description) + '</div>' + (task.practice ? '<div class="lesson-box"><b>实操：</b>' + esc(task.practice) + '</div>' : '') + (task.question ? '<div class="quiz-box"><b>检测题：</b>' + esc(task.question) + '<br><button class="quiz-btn" onclick="this.nextElementSibling.classList.toggle(\'show\')">查看参考答案</button><span class="quiz-answer">' + esc(task.answer) + '</span></div>' : '') + '<a href="' + esc(task.resource) + '" target="_blank" rel="noopener">打开课程入口 ↗</a></td><td>' + esc(task.minutes) + ' 分钟</td><td class="' + (record.done ? 'status-done' : 'muted') + '">' + (record.done ? '已完成 ✓' : '待打卡') + '</td><td><button class="btn ' + (record.done ? 'ghost' : 'secondary') + '" onclick="toggle(' + task.day + ')">' + (record.done ? '撤销' : '完成') + '</button></td></tr>';
+  function coursePage(day) {
+    if (!tasks.length) return shell('<div class="empty">课程数据加载中...</div>');
+    var next = tasks.find(function (item) { return !progressFor(item).done; }) || tasks[tasks.length - 1];
+    var task = tasks.find(function (item) { return Number(item.day) === Number(day); }) || next;
+    courseDay = task.day;
+    localStorage.setItem('bloom-course-day', String(courseDay));
+    var done = Object.values(progress).filter(function (item) { return item.done; }).length;
+    var weekTasks = tasks.filter(function (item) { return item.week === task.week; });
+    var outcomes = (task.outcomes || []).map(function (item) { return '<li>' + esc(item) + '</li>'; }).join('');
+    var agenda = (task.agenda || []).map(function (item, index) { return '<div class="agenda-step"><span>' + (index + 1) + '</span><div><b>' + esc(item.label) + ' · ' + esc(item.minutes) + ' 分钟</b><p>' + esc(item.detail) + '</p></div></div>'; }).join('');
+    var weekTabs = [1,2,3,4,5,6,7,8].map(function (week) { var first = tasks.find(function (item) { return item.week === week; }); return '<button class="' + (week === task.week ? 'active' : '') + '" onclick="coursePage(' + first.day + ')">第 ' + week + ' 周</button>'; }).join('');
+    var dayButtons = weekTasks.map(function (item) { var record = progressFor(item); return '<button class="course-day ' + (item.day === task.day ? 'active' : '') + '" onclick="coursePage(' + item.day + ')"><span>第 ' + item.day + ' 天' + (record.done ? ' ✓' : '') + '</span><b>' + esc(item.title) + '</b><small>' + esc(item.minutes) + ' 分钟</small></button>'; }).join('');
+    shell('<div class="welcome"><div><div class="eyebrow">56 DAY LEARNING PATH</div><h1>每日课程</h1><p class="muted">每天都有明确目标、学习步骤、实操作业和对应检测。</p></div><button class="btn ghost" onclick="logout()">退出</button></div><div class="stats course-stats"><div class="stat"><b>' + done + '</b><span>已完成</span></div><div class="stat"><b>' + Math.round(done / tasks.length * 100) + '%</b><span>总进度</span></div><div class="stat"><b>' + task.week + '/8</b><span>当前周</span></div></div><nav class="course-weeks" aria-label="课程周次">' + weekTabs + '</nav><div class="course-layout"><aside class="course-days" aria-label="本周课程">' + dayButtons + '</aside><section class="lesson-detail"><div class="lesson-head"><div><div class="eyebrow">第 ' + task.day + ' 天 · 第 ' + task.week + ' 周 · ' + esc(task.module) + '</div><h2>' + esc(task.title) + '</h2><p>' + esc(task.description) + '</p></div><div class="lesson-time"><b>' + esc(task.minutes) + '</b><span>分钟</span></div></div><div class="lesson-section"><h3>完成后你将能够</h3><ul class="outcome-list">' + outcomes + '</ul></div><div class="lesson-section"><h3>今日学习路线</h3><div class="agenda-list">' + agenda + '</div></div><div class="deliverable"><span>今日产出</span><b>' + esc(task.deliverable || task.practice) + '</b><p>' + esc(task.masteryTarget || '') + '</p></div><div class="lesson-actions"><a class="btn ghost" href="' + esc(task.resource) + '" target="_blank" rel="noopener">打开学习资料</a><button class="btn secondary" onclick="quizPage(' + task.day + ')">进入当天检测</button><button class="btn" onclick="toggle(' + task.day + ')">' + (progressFor(task).done ? '撤销完成' : '完成今日课程') + '</button></div></section></div>');
   }
 
   function passwordSetupPage(returnToProfile) {
@@ -242,33 +252,46 @@
     api('/api/progress', { method: 'POST', body: JSON.stringify({ day: Number(day), done: !record.done, minutes: 120, note: record.note || '' }) }).then(function (data) { progress[key] = data.progress; render(); });
   }
 
-  function quizOptions(task) {
-    var answer = String(task.answer || '自测');
-    var pool = tasks.map(function (item) { return String(item.answer || ''); }).filter(function (item) { return item && item !== answer; });
+  function quizOptions(task, factIndex, questionIndex) {
+    var facts = task.quizFacts || [], fact = facts[factIndex % facts.length] || { answer: task.answer || '自测' };
+    var answer = String(fact.answer);
+    var pool = tasks.map(function (item) { var itemFacts = item.quizFacts || []; return String((itemFacts[factIndex % itemFacts.length] || {}).answer || ''); }).filter(function (item) { return item && item !== answer; });
     var options = [answer];
     for (var i = 0; i < pool.length && options.length < 4; i++) if (options.indexOf(pool[(i + task.day) % pool.length]) < 0) options.push(pool[(i + task.day) % pool.length]);
-    return options;
+    if (options.length < 4 && /^\d+$/.test(answer)) [30, 60, 90].forEach(function (offset) { var value = String(Number(answer) + offset); if (options.length < 4 && options.indexOf(value) < 0) options.push(value); });
+    var shift = questionIndex % options.length;
+    return options.slice(shift).concat(options.slice(0, shift));
+  }
+
+  function factualItem(task, type, index, weekly) {
+    var facts = task.quizFacts || [{ prompt: task.question || task.title, answer: task.answer || '自测', explanation: task.description }], factIndex = index % facts.length, fact = facts[factIndex];
+    return { id: (weekly ? 'weekly-' : '') + type + '-' + index, type: type, sourceDay: task.day, prompt: fact.prompt + (index >= facts.length ? '（巩固 ' + (Math.floor(index / facts.length) + 1) + '）' : ''), answer: fact.answer, explanation: fact.explanation, options: type === 'choice' ? quizOptions(task, factIndex, index) : undefined, task: task };
+  }
+
+  function responseItem(task, index, weekly) {
+    var prompts = ['用自己的话解释“' + task.title + '”。', '列出完成今日实操的三个关键步骤。', '为今天的知识点设计一个真实使用场景。', '写出一个常见错误、原因与修复方法。', '说明如何判断今日产出已经达标。', '给初学者写一段不超过 100 字的讲解。', '为今天的知识点补充一个最小示例。', '设计一个能够发现错误的测试方法。', '用三句话总结今天的输入、处理与输出。', '如果实操失败，你会按什么顺序排查？', '说明今天的内容如何连接到完整 AI 应用。'];
+    return { id: (weekly ? 'weekly-' : '') + 'response-' + index, type: 'response', sourceDay: task.day, prompt: prompts[index % prompts.length] + (index >= prompts.length ? '（角度 ' + (Math.floor(index / prompts.length) + 1) + '）' : ''), answer: task.deliverable || task.practice || '结合当天课程完成开放作答', explanation: '回答应准确引用当天课程概念，并给出可执行步骤或示例。', task: task };
   }
 
   function buildQuizPaper(day) {
-    var paper = [], prefixes = ['请解释：', '请列出关键步骤：', '请结合一个实际场景说明：', '请写出一个常见错误及修复方式：'];
-    for (var i = 0; i < 34; i++) { var fillTask = tasks[(day - 1 + i) % tasks.length]; paper.push({ id: 'fill-' + i, type: 'fill', sourceDay: fillTask.day, prompt: '第 ' + fillTask.day + ' 天：' + (fillTask.question || fillTask.title), task: fillTask }); }
-    for (var j = 0; j < 33; j++) { var choiceTask = tasks[(day - 1 + j * 2) % tasks.length]; paper.push({ id: 'choice-' + j, type: 'choice', sourceDay: choiceTask.day, prompt: choiceTask.question || choiceTask.title, options: quizOptions(choiceTask), task: choiceTask }); }
-    for (var k = 0; k < 33; k++) { var responseTask = tasks[(day - 1 + k * 3) % tasks.length]; paper.push({ id: 'response-' + k, type: 'response', sourceDay: responseTask.day, prompt: prefixes[k % prefixes.length] + '第 ' + responseTask.day + ' 天的' + (responseTask.practice || responseTask.description), task: responseTask }); }
+    var task = tasks.find(function (item) { return Number(item.day) === Number(day); }) || tasks[0], paper = [];
+    for (var i = 0; i < 34; i++) paper.push(factualItem(task, 'fill', i, false));
+    for (var j = 0; j < 33; j++) paper.push(factualItem(task, 'choice', j, false));
+    for (var k = 0; k < 33; k++) paper.push(responseItem(task, k, false));
     return paper;
   }
 
   function buildWeeklyPaper(week) {
     var weekTasks = tasks.filter(function (item) { return Number(item.week) === Number(week); }), paper = [];
-    for (var i = 0; i < 7; i++) { var fillTask = weekTasks[i % weekTasks.length]; paper.push({ id: 'weekly-fill-' + i, type: 'fill', sourceDay: fillTask.day, prompt: '第 ' + fillTask.day + ' 天：' + (fillTask.question || fillTask.title), task: fillTask }); }
-    for (var j = 0; j < 7; j++) { var choiceTask = weekTasks[(j * 2) % weekTasks.length]; paper.push({ id: 'weekly-choice-' + j, type: 'choice', sourceDay: choiceTask.day, prompt: choiceTask.question || choiceTask.title, options: quizOptions(choiceTask), task: choiceTask }); }
-    for (var k = 0; k < 7; k++) { var responseTask = weekTasks[(k * 3) % weekTasks.length]; paper.push({ id: 'weekly-response-' + k, type: 'response', sourceDay: responseTask.day, prompt: '请结合第 ' + responseTask.day + ' 天课程完成练习：' + (responseTask.practice || responseTask.description), task: responseTask }); }
+    for (var i = 0; i < 7; i++) paper.push(factualItem(weekTasks[i], 'fill', i, true));
+    for (var j = 0; j < 7; j++) paper.push(factualItem(weekTasks[j], 'choice', j, true));
+    for (var k = 0; k < 7; k++) paper.push(responseItem(weekTasks[k], k, true));
     return paper;
   }
 
   function quizAnswerBlock(item) {
-    var answer = item.type === 'response' ? (item.task.answer || '结合课程内容完成开放作答') : (item.task.answer || '暂无标准答案');
-    var explanation = item.type === 'response' ? ('参考思路：' + (item.task.practice || item.task.description || '围绕当天课程的核心概念作答。')) : ('本题对应第 ' + item.sourceDay + ' 天课程知识点。' + (item.task.description || ''));
+    var answer = item.answer || '暂无标准答案';
+    var explanation = item.explanation || ('本题对应第 ' + item.sourceDay + ' 天课程知识点。');
     return '<details class="quiz-answer"><summary>查看答案与解析</summary><p><b>答案：</b>' + esc(answer) + '</p><p><b>解析：</b>' + esc(explanation) + '</p></details>';
   }
 
@@ -305,7 +328,7 @@
     var task = tasks.find(function (item) { return Number(item.day) === quizDay; }) || tasks[0];
     if (!task) return shell('<div class="empty">课程数据加载中...</div>');
     var result = quizResults[String(task.day)], paper = buildQuizPaper(quizDay);
-    shell('<div class="welcome"><div><div class="eyebrow">DAILY ASSESSMENT</div><h1>学习检测</h1><p class="muted">第 ' + quizDay + ' 天试卷 · 共 100 题（34 填空、33 选择、33 应答）</p></div><div class="quiz-toolbar"><button class="btn ' + (quizMode === 'daily' ? '' : 'ghost') + '" onclick="quizPage(' + quizDay + ')">每日试卷</button><button class="btn ' + (quizMode === 'weekly' ? '' : 'ghost') + '" onclick="weeklyQuizPage(1)">每周练习</button><label for="quizDay">选择天数</label><select id="quizDay" onchange="quizPage(this.value)">' + tasks.map(function (item) { return '<option value="' + item.day + '" ' + (item.day === task.day ? 'selected' : '') + '>第 ' + item.day + ' 天</option>'; }).join('') + '</select></div></div>' + quizChart() + '<section class="card quiz-paper"><div class="quiz-paper-head"><div><div class="eyebrow">第 ' + task.day + ' 天 · ' + esc(task.module) + '</div><h2>' + esc(task.title) + '</h2><p class="muted">' + esc(task.description) + '</p></div>' + (result ? '<div class="quiz-score">最近得分 <b>' + result.score + '</b>/100</div>' : '') + '</div>' + quizSections(paper) + '<div class="save-row"><span id="quizMsg" class="form-error">' + (result ? '上次提交：' + result.correct + '/' + result.total + ' 题正确或已完成' : '完成 100 题后提交试卷') + '</span><button class="btn" onclick="submitQuiz(' + task.day + ')">提交试卷</button></div></section>');
+    shell('<div class="welcome"><div><div class="eyebrow">DAILY ASSESSMENT</div><h1>学习检测</h1><p class="muted">第 ' + quizDay + ' 天试卷 · 100 题全部对应当天课程（34 填空、33 选择、33 应答）</p></div><div class="quiz-toolbar"><button class="btn ' + (quizMode === 'daily' ? '' : 'ghost') + '" onclick="quizPage(' + quizDay + ')">每日试卷</button><button class="btn ' + (quizMode === 'weekly' ? '' : 'ghost') + '" onclick="weeklyQuizPage(1)">每周练习</button><label for="quizDay">选择天数</label><select id="quizDay" onchange="quizPage(this.value)">' + tasks.map(function (item) { return '<option value="' + item.day + '" ' + (item.day === task.day ? 'selected' : '') + '>第 ' + item.day + ' 天 · ' + esc(item.title) + '</option>'; }).join('') + '</select></div></div>' + quizChart() + '<section class="card quiz-paper"><div class="quiz-paper-head"><div><div class="eyebrow">第 ' + task.day + ' 天 · ' + esc(task.module) + '</div><h2>' + esc(task.title) + '</h2><p class="muted">' + esc(task.description) + '</p></div>' + (result ? '<div class="quiz-score">最近得分 <b>' + result.score + '</b>/100</div>' : '') + '</div>' + quizSections(paper) + '<div class="save-row"><span id="quizMsg" class="form-error">' + (result ? '上次提交：' + result.correct + '/' + result.total + ' 题正确或已完成' : '完成 100 题后提交试卷') + '</span><button class="btn" onclick="submitQuiz(' + task.day + ')">提交试卷</button></div></section>');
   }
 
   function weeklyQuizPage(week) {
@@ -334,6 +357,7 @@
 
   function addNote() { api('/api/notes', { method: 'POST', body: JSON.stringify({ title: document.getElementById('nt').value, content: document.getElementById('nc').value }) }).then(function (data) { notes.unshift(data.note); render(); }); }
   function addPost() { api('/api/forum', { method: 'POST', body: JSON.stringify({ title: document.getElementById('pt').value, content: document.getElementById('pc').value }) }).then(function (data) { posts.unshift(data.post); render(); }); }
+  function installApp() { if (!installPrompt) return; installPrompt.prompt(); installPrompt.userChoice.finally(function () { installPrompt = null; if (me) render(); }); }
   function logout() { var currentRefresh = refreshToken; token = null; refreshToken = null; localStorage.removeItem('bloom-token'); localStorage.removeItem('bloom-refresh-token'); me = null; if (currentRefresh) fetch('/api/auth/logout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refreshToken: currentRefresh }) }).catch(function () {}); authPage('login'); }
   function admin() { api('/api/admin/stats').then(function (stats) { app.innerHTML = '<main class="main"><section class="card"><div class="brand">AI <b>BLOOM</b></div><h1>运营控制台</h1><div class="stats"><div class="stat"><b>' + stats.users + '</b><span>用户</span></div><div class="stat"><b>' + stats.records + '</b><span>打卡</span></div><div class="stat"><b>' + stats.posts + '</b><span>帖子</span></div></div><button class="btn ghost" onclick="logout()">退出</button></section></main>'; }); }
 
@@ -347,6 +371,8 @@
   window.passwordSetupPage = passwordSetupPage;
   window.saveProfile = saveProfile;
   window.switchTab = switchTab;
+  window.coursePage = coursePage;
+  window.installApp = installApp;
   window.quizPage = quizPage;
   window.weeklyQuizPage = weeklyQuizPage;
   window.submitQuiz = submitQuiz;
@@ -355,6 +381,8 @@
   window.addNote = addNote;
   window.addPost = addPost;
   window.logout = logout;
+  window.addEventListener('beforeinstallprompt', function (event) { event.preventDefault(); installPrompt = event; if (me) render(); });
+  if ('serviceWorker' in navigator) window.addEventListener('load', function () { navigator.serviceWorker.register('/service-worker.js').catch(function () {}); });
   if (token) boot();
   else if (location.pathname === '/admin') adminLoginPage();
   else authPage('login');

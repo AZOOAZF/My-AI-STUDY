@@ -35,10 +35,9 @@ const AUTH_MAX_ATTEMPTS = 10;
 const authAttempts = new Map();
 let smtpTransport;
 
-const units = ['Python 基础','Python 实操','大模型原理','LLM 应用','RAG 知识库','Agent 核心','框架部署','作品集项目'];
-const links = ['https://liaoxuefeng.com/books/python/introduction/index.html','https://liaoxuefeng.com/books/python/introduction/index.html','https://github.com/datawhalechina/happy-llm','https://github.com/datawhalechina/hello-agents','https://github.com/datawhalechina/hello-agents','https://github.com/datawhalechina/hello-agents','https://ollama.readthedocs.io/quickstart/','https://github.com/datawhalechina/hello-agents'];
+const curriculum = require('./data.json').tasks || [];
 
-function seedTasks() { const a=[]; for(let i=0;i<56;i++){const w=Math.floor(i/7);a.push({id:i+1,day:i+1,week:w+1,module:units[w],title:i%7===6?'周测与复盘：提交本周成果':units[w]+'：理论、案例与实操',description:i%7===6?'完成可运行小作品，记录一个难点和解决方法':'理论 30 分钟 · 案例 25 分钟 · 实操 55 分钟 · 复盘 20 分钟',minutes:120,resource:links[w]})} return a; }
+function seedTasks() { return curriculum.map(task => ({ ...task })); }
 function load() { return loadData(seedTasks); }
 function send(res,status,data){res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer'});res.end(JSON.stringify(data));}
 function readLimited(req,limit,parser){return new Promise((resolve,reject)=>{const length=Number(req.headers['content-length']);if(Number.isFinite(length)&&length>limit){req.resume();const error=new Error('请求体过大');error.statusCode=413;reject(error);return}let chunks=[],size=0,settled=false;req.on('data',chunk=>{if(settled)return;size+=chunk.length;if(size>limit){settled=true;req.resume();const error=new Error('请求体过大');error.statusCode=413;reject(error);return}chunks.push(chunk)});req.on('end',()=>{if(settled)return;const raw=Buffer.concat(chunks).toString('utf8');try{resolve(parser(raw))}catch(error){reject(error)}});req.on('error',error=>{if(!settled){settled=true;reject(error)}})})}
@@ -63,6 +62,7 @@ function progressKey(value){const raw=String(value??'').trim();if(/^\d+$/.test(r
 }
 function validCurrency(x){return ['usd','cny'].includes(String(x||'').toLowerCase());}
 function quizAnswer(value){return String(value||'').trim().toLowerCase().replace(/\s+/g,'');}
+function quizExpected(task,id){const match=/(?:weekly-)?(?:fill|choice|response)-(\d+)$/.exec(String(id||'')),facts=task.quizFacts||[];return facts.length&&match?facts[Number(match[1])%facts.length].answer:task.answer;}
 function logError(context,error){console.error(JSON.stringify({time:new Date().toISOString(),context,error:String(error.message||error)}));}
 function emailUnavailableReason(){
   if(EMAIL_PROVIDER==='smtp'&&(!SMTP_USER||!SMTP_PASS))return 'SMTP_USER 或 SMTP_PASS 未配置';
@@ -98,10 +98,14 @@ async function stripe(pathname,body){const r=await fetch('https://api.stripe.com
 function form(obj){return new URLSearchParams(obj).toString();}
 function productFor(d,productId,currency,mode){const p=d.products.find(x=>x.id===productId&&x.active!==false&&x.mode===mode&&x.currency===currency);if(!p||!Number.isInteger(p.amount)||p.amount<=0)throw new Error('商品未配置有效价格');return p;}
 async function app(req,res){
-  const u=new URL(req.url,'http://localhost'); const d=await load();
+  const u=new URL(req.url,'http://localhost');
   if(req.method==='GET'&&u.pathname==='/health')return send(res,200,{ok:true,time:new Date().toISOString()});
   if(req.method==='GET'&&(u.pathname==='/'||u.pathname==='/index.html'||u.pathname==='/admin')){res.writeHead(200,{'Content-Type':'text/html; charset=utf-8'});return fs.createReadStream(path.join(__dirname,'index.html')).pipe(res)}
   if(req.method==='GET'&&u.pathname==='/app.js'){res.writeHead(200,{'Content-Type':'application/javascript; charset=utf-8'});return fs.createReadStream(path.join(__dirname,'app.js')).pipe(res)}
+  if(req.method==='GET'&&u.pathname==='/service-worker.js'){res.writeHead(200,{'Content-Type':'application/javascript; charset=utf-8','Service-Worker-Allowed':'/'});return fs.createReadStream(path.join(__dirname,'service-worker.js')).pipe(res)}
+  if(req.method==='GET'&&u.pathname==='/manifest.webmanifest'){res.writeHead(200,{'Content-Type':'application/manifest+json; charset=utf-8'});return fs.createReadStream(path.join(__dirname,'manifest.webmanifest')).pipe(res)}
+  if(req.method==='GET'&&u.pathname==='/app-icon.png'){res.writeHead(200,{'Content-Type':'image/png','Cache-Control':'public, max-age=86400'});return fs.createReadStream(path.join(__dirname,'app-icon.png')).pipe(res)}
+  const d=await load();
   if(req.method==='GET'&&u.pathname==='/api/tasks')return send(res,200,{tasks:d.tasks});
   if(req.method==='POST'&&u.pathname==='/api/auth/request-code'){
     const authUnavailable=authUnavailableReason();if(authUnavailable&&IS_PRODUCTION)return send(res,503,{error:'认证服务暂时不可用，请联系网站管理员'});
@@ -171,7 +175,7 @@ async function app(req,res){
   if(req.method==='POST'&&u.pathname==='/api/quiz-results'){
     const b=await readBody(req),kind=b.kind==='weekly'?'weekly':'daily',period=Number(kind==='weekly'?b.week:b.day),paper=Array.isArray(b.answers)?b.answers:[],total=kind==='weekly'?21:100,typeTotals=kind==='weekly'?{fill:7,choice:7,response:7}:{fill:34,choice:33,response:33};
     if(!Number.isInteger(period)||(kind==='weekly'?(period<1||period>8):(period<1||period>56))||paper.length!==total)return send(res,400,{error:kind==='weekly'?'周练习必须提交完整的 21 道题':'试卷必须提交完整的 100 道题'});
-    const seen=new Set(),counts={fill:0,choice:0,response:0},scores={fill:0,choice:0,response:0};let correct=0;for(const item of paper){const type=String(item.type||''),id=String(item.id||''),sourceDay=Number(item.sourceDay),task=d.tasks.find(taskItem=>taskItem.day===sourceDay),value=String(item.value||'').trim(),prefix=kind==='weekly'?'weekly-': '',validId=(kind==='weekly'?/^weekly-(fill|choice|response)-\d+$/.test(id):/^((fill|choice|response)-\d+)$/.test(id))&&id.startsWith(prefix+type+'-');if(!task||!validId||seen.has(id)||!Object.prototype.hasOwnProperty.call(counts,type)||(kind==='weekly'&&task.week!==period))return send(res,400,{error:'试卷题目数据无效'});seen.add(id);counts[type]++;let isCorrect=false;if(type==='fill'||type==='choice')isCorrect=quizAnswer(value)===quizAnswer(task.answer);else isCorrect=Boolean(value);if(isCorrect){correct++;scores[type]++;}}
+    const seen=new Set(),counts={fill:0,choice:0,response:0},scores={fill:0,choice:0,response:0};let correct=0;for(const item of paper){const type=String(item.type||''),id=String(item.id||''),sourceDay=Number(item.sourceDay),task=d.tasks.find(taskItem=>taskItem.day===sourceDay),value=String(item.value||'').trim(),prefix=kind==='weekly'?'weekly-': '',validId=(kind==='weekly'?/^weekly-(fill|choice|response)-\d+$/.test(id):/^((fill|choice|response)-\d+)$/.test(id))&&id.startsWith(prefix+type+'-');if(!task||!validId||seen.has(id)||!Object.prototype.hasOwnProperty.call(counts,type)||(kind==='weekly'&&task.week!==period)||(kind==='daily'&&task.day!==period))return send(res,400,{error:'试卷题目与所选课程不匹配'});seen.add(id);counts[type]++;let isCorrect=false;if(type==='fill'||type==='choice')isCorrect=quizAnswer(value)===quizAnswer(quizExpected(task,id));else isCorrect=Boolean(value);if(isCorrect){correct++;scores[type]++;}}
     if(counts.fill!==typeTotals.fill||counts.choice!==typeTotals.choice||counts.response!==typeTotals.response)return send(res,400,{error:kind==='weekly'?'周练习题型数量必须为 7/7/7':'试卷题型数量必须为 34/33/33'});
     const key=kind==='weekly'?'w'+period:String(period);d.quizResults[me.email]??={};d.quizResults[me.email][key]={kind,week:kind==='weekly'?period:undefined,day:kind==='daily'?period:undefined,score:correct,total,correct,counts,typeTotals,scores,submittedAt:new Date().toISOString()};await save(d);return send(res,200,{result:d.quizResults[me.email][key]});
   }
