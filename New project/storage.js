@@ -8,6 +8,27 @@ const IS_PRODUCTION = process.env.NODE_ENV === 'production' || process.env.CONTE
 const USE_SUPABASE = /^https:\/\/[a-z0-9]+\.supabase\.co$/i.test(SUPABASE_URL) && Boolean(SUPABASE_SECRET_KEY);
 let fallbackData;
 
+const PROJECTS = [
+  { title: '个人学习资料 CLI', brief: '把零散的学习记录变成一个可查询、可复盘的命令行工具。', roles: ['产品负责人', 'Python 开发者', '测试负责人'] },
+  { title: '数据清洗与周报工具', brief: '接收一份真实数据，清洗、统计并生成一份可读的学习周报。', roles: ['数据分析师', '实现者', '质量负责人'] },
+  { title: 'Prompt 评测工作台', brief: '做一个能保存提示词、运行样例并比较输出质量的小型工作台。', roles: ['产品设计师', '提示词工程师', '评测负责人'] },
+  { title: '个人知识库 RAG', brief: '把自己的资料整理成可检索知识库，并让回答带有可靠引用。', roles: ['知识库设计师', '检索工程师', '验证负责人'] },
+  { title: '学习助理 Agent', brief: '构建一个能拆解学习任务、调用工具并记录进度的助理。', roles: ['Agent 架构师', '工具开发者', '安全评审员'] },
+  { title: '可部署 AI 服务', brief: '把一个 AI 功能封装成可配置、可观测、可部署的网络服务。', roles: ['服务架构师', '接口开发者', '发布负责人'] },
+  { title: '作品集产品化', brief: '将前面的小实验整理成一个用户能理解、能使用、能评价的作品。', roles: ['产品负责人', '体验设计师', '展示负责人'] },
+  { title: 'AI 学习伙伴毕业项目', brief: '独立完成一个从需求到发布的 AI 应用，并用证据说明它解决了什么问题。', roles: ['项目负责人', '技术负责人', '复盘主持人'] },
+];
+
+const PROJECT_PHASES = [
+  { title: '项目立项', action: '明确用户、场景和成功标准' },
+  { title: '最小原型', action: '把知识点变成一个最小可运行样例' },
+  { title: '核心功能', action: '完成项目最重要的一条输入到输出链路' },
+  { title: '数据与体验', action: '补充真实输入、异常情况和可读输出' },
+  { title: '验证与反馈', action: '用测试样例检查结果并根据反馈修正' },
+  { title: '交付准备', action: '整理使用说明、示例和演示材料' },
+  { title: '周演示与复盘', action: '展示产出、记录问题并规划下一步' },
+];
+
 function unavailable(reason) {
   console.error('[storage] Persistent storage unavailable:', reason);
   const error = new Error('持久化数据库暂时不可用，请联系网站管理员');
@@ -19,6 +40,22 @@ function enrichTask(task, index) {
   const day = index + 1;
   const week = Math.floor(index / 7) + 1;
   const minutes = Number(task.minutes) || 120;
+  const project = PROJECTS[week - 1] || PROJECTS[PROJECTS.length - 1];
+  const phase = PROJECT_PHASES[index % PROJECT_PHASES.length];
+  const projectData = {
+    title: project.title,
+    brief: project.brief,
+    role: project.roles[index % project.roles.length],
+    milestone: phase.title,
+    goal: `围绕“${task.title}”，${phase.action}。`,
+    deliverable: task.practice || `提交一份${task.title}练习结果。`,
+    acceptance: [
+      `能用一个真实例子演示${phase.action}。`,
+      `能说明“${task.title}”在本周项目中的作用。`,
+      '留下可复现的结果，并记录一个下一步改进点。',
+    ],
+    reflection: `复盘：如果把这一步交给别人接手，最需要补充哪一条说明？`,
+  };
   const quizFacts = [
     { prompt: task.question || `第 ${day} 天最重要的知识点是什么？`, answer: task.answer || task.title, explanation: task.description || task.title },
     { prompt: `第 ${day} 天的课程主题是什么？`, answer: task.title, explanation: `本日围绕“${task.title}”展开。` },
@@ -31,6 +68,7 @@ function enrichTask(task, index) {
     id: day,
     day,
     week,
+    project: projectData,
     outcomes: [
       `能用自己的话解释“${task.title}”`,
       `能独立完成：${task.practice || task.description}`,

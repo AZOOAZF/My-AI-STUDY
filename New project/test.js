@@ -176,14 +176,21 @@ test('daily courses expose a clear lesson plan and aligned quiz facts', async ()
       assert.equal(task.agenda.length, 4);
       assert.equal(task.quizFacts.length, 5);
       assert.ok(task.deliverable);
+      assert.ok(task.project.title);
+      assert.ok(task.project.milestone);
+      assert.equal(task.project.acceptance.length, 3);
     }
   });
   const app = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
   const server = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  const page = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
   assert.match(app, /var task = tasks\.find\(function \(item\) \{ return Number\(item\.day\) === Number\(day\); \}\)/);
   assert.equal(app.includes("tasks[(day - 1 + i) % tasks.length]"), false);
   assert.match(server, /kind==='daily'&&task\.day!==period/);
   assert.match(app, /\[30, 60, 90\][\s\S]*options\.length < 4/);
+  assert.match(app, /PROJECT STUDIO/);
+  assert.match(app, /里程碑交付与验收/);
+  assert.match(page, /\.project-brief/);
 });
 
 test('app build includes installable PWA assets', () => {
