@@ -18,6 +18,8 @@
   var authChallenge = '';
   var passwordPromptSkipped = false;
   var passwordReturnToProfile = false;
+  var sceneMessageIndex = 0;
+  var sceneMessages = ['先做出一个能运行的版本，再让它变得漂亮。', '今天的知识点，要在一个真实小项目里留下痕迹。', '把输入、实现和验收连起来，学习就有了方向。'];
 
   function esc(x) {
     return String(x == null ? '' : x).replace(/[&<>"']/g, function (c) {
@@ -64,7 +66,13 @@
     else authMethod = 'code';
     if (previousMode !== authMode || previousMethod !== authMethod) authChallenge = '';
     var passwordLogin = authMode === 'login' && authMethod === 'password';
-    app.innerHTML = `<main class="auth-page"><section class="auth-panel"><div class="auth-card"><div class="brand">AI <b>BLOOM</b></div><h1>${authMode === 'register' ? '创建学习账户' : '欢迎回来'}</h1><p class="muted">${authMode === 'register' ? '一个邮箱只能注册一个账户，注册后先完成简洁学习档案。' : (passwordLogin ? '使用已设置的邮箱和密码快速登录。' : '使用注册邮箱接收验证码，忘记密码时也可用验证码找回。')}</p><div class="auth-tabs"><button class="${authMode === 'login' ? 'active' : ''}" onclick="authPage('login')">登录</button><button class="${authMode === 'register' ? 'active' : ''}" onclick="authPage('register')">注册</button></div>${authMode === 'login' ? `<div class="auth-methods"><button class="${!passwordLogin ? 'active' : ''}" onclick="authPage('login','code')">验证码登录</button><button class="${passwordLogin ? 'active' : ''}" onclick="authPage('login','password')">密码登录</button></div>` : ''}<div class="field"><label>邮箱地址</label><input id="authEmail" type="email" autocomplete="email" placeholder="name@example.com"></div>${passwordLogin ? '<div class="field"><label>登录密码</label><input id="authPassword" type="password" autocomplete="current-password" placeholder="请输入已设置的密码"></div>' : '<div class="field"><label>邮箱验证码</label><div class="code-row"><input id="authCode" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="6 位验证码"><button class="btn secondary" id="sendCode" onclick="requestCode()">获取验证码</button></div></div>'}<div id="authError" class="form-error"></div><button class="btn" style="width:100%" id="authSubmit" onclick="${passwordLogin ? 'submitPasswordLogin()' : 'submitAuth()'}">${authMode === 'register' ? '注册并继续' : '登录'}</button><p class="form-tip">继续即表示你同意将邮箱用于账户验证和必要服务通知。</p></div></section><aside class="auth-scene"><div class="scene-copy"><h2>把 AI 学习变成一条看得见的成长路径。</h2><p>AI Bloom 是一个面向个人的学习社区：用 56 天打卡表拆解课程，记录笔记与进度，并在社区里交流实践成果。</p><div class="mail-list"><span>56 天打卡</span><span>学习笔记</span><span>社区交流</span><span>QQ / 网易</span><span>Gmail / Outlook</span></div></div></aside></main>`;
+    app.innerHTML = `<main class="auth-page"><section class="auth-panel"><div class="auth-card"><div class="brand">AI <b>BLOOM</b></div><h1>${authMode === 'register' ? '创建学习账户' : '欢迎回来'}</h1><p class="muted">${authMode === 'register' ? '一个邮箱只能注册一个账户，注册后先完成简洁学习档案。' : (passwordLogin ? '使用已设置的邮箱和密码快速登录。' : '使用注册邮箱接收验证码，忘记密码时也可用验证码找回。')}</p><div class="auth-tabs"><button class="${authMode === 'login' ? 'active' : ''}" onclick="authPage('login')">登录</button><button class="${authMode === 'register' ? 'active' : ''}" onclick="authPage('register')">注册</button></div>${authMode === 'login' ? `<div class="auth-methods"><button class="${!passwordLogin ? 'active' : ''}" onclick="authPage('login','code')">验证码登录</button><button class="${passwordLogin ? 'active' : ''}" onclick="authPage('login','password')">密码登录</button></div>` : ''}<div class="field"><label>邮箱地址</label><input id="authEmail" type="email" autocomplete="email" placeholder="name@example.com"></div>${passwordLogin ? '<div class="field"><label>登录密码</label><input id="authPassword" type="password" autocomplete="current-password" placeholder="请输入已设置的密码"></div>' : '<div class="field"><label>邮箱验证码</label><div class="code-row"><input id="authCode" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="6 位验证码"><button class="btn secondary" id="sendCode" onclick="requestCode()">获取验证码</button></div></div>'}<div id="authError" class="form-error"></div><button class="btn" style="width:100%" id="authSubmit" onclick="${passwordLogin ? 'submitPasswordLogin()' : 'submitAuth()'}">${authMode === 'register' ? '注册并继续' : '登录'}</button><p class="form-tip">继续即表示你同意将邮箱用于账户验证和必要服务通知。</p></div></section><aside class="auth-scene"><div class="scene-copy"><div class="scene-kicker">AI BLOOM · 56 DAY QUEST</div><h2>把今天的一个想法，变成可运行的成果。</h2><p>每次登录，都是一次小型项目启动：学一个概念，完成一个里程碑，留下一个能展示的结果。</p><div class="scene-board"><div class="scene-board-top"><span>今日项目</span><b>第 01 天</b></div><strong>个人学习资料 CLI</strong><div class="scene-progress"><i></i><i></i><i></i><i></i><i></i></div><div class="scene-board-foot"><span>输入 → 实现 → 验收</span><b>准备开始</b></div></div><div class="mail-list"><span>项目制学习</span><span>56 天里程碑</span><span>每日可交付</span></div><button class="scene-spark" type="button" onclick="shuffleScene()"><span class="scene-spark-icon">+</span><span id="scenePrompt">${sceneMessages[sceneMessageIndex]}</span><b>换一句</b></button></div></aside></main>`;
+  }
+
+  function shuffleScene() {
+    sceneMessageIndex = (sceneMessageIndex + 1) % sceneMessages.length;
+    var prompt = document.getElementById('scenePrompt');
+    if (prompt) prompt.textContent = sceneMessages[sceneMessageIndex];
   }
 
   function adminLoginPage() {
@@ -364,6 +372,7 @@
   function admin() { api('/api/admin/stats').then(function (stats) { app.innerHTML = '<main class="main"><section class="card"><div class="brand">AI <b>BLOOM</b></div><h1>运营控制台</h1><div class="stats"><div class="stat"><b>' + stats.users + '</b><span>用户</span></div><div class="stat"><b>' + stats.records + '</b><span>打卡</span></div><div class="stat"><b>' + stats.posts + '</b><span>帖子</span></div></div><button class="btn ghost" onclick="logout()">退出</button></section></main>'; }); }
 
   window.authPage = authPage;
+  window.shuffleScene = shuffleScene;
   window.submitAdminLogin = submitAdminLogin;
   window.requestCode = requestCode;
   window.submitAuth = submitAuth;

@@ -40,6 +40,9 @@ test('login UI has email registration without an admin entry', () => {
   const text = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8') + fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
   assert.match(text, /获取验证码/);
   assert.match(text, /注册并继续/);
+  assert.match(text, /scene-board/);
+  assert.match(text, /shuffleScene/);
+  assert.match(text, /prefers-reduced-motion/);
   assert.equal(text.includes('管理员入口'), false);
   assert.equal(text.includes('演示验证码：123456'), false);
 });
