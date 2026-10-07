@@ -192,8 +192,11 @@ test('daily courses expose a clear lesson plan and aligned quiz facts', async ()
   assert.match(server, /kind==='daily'&&task\.day!==period/);
   assert.match(app, /\[30, 60, 90\][\s\S]*options\.length < 4/);
   assert.match(app, /PROJECT STUDIO/);
+  assert.match(app, /workspace-shell/);
+  assert.match(app, /sendProjectMessage/);
+  assert.match(app, /submitProjectArtifact/);
   assert.match(app, /里程碑交付与验收/);
-  assert.match(page, /\.project-brief/);
+  assert.match(page, /\.workspace-shell/);
 });
 
 test('app build includes installable PWA assets', () => {
