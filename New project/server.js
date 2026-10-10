@@ -63,6 +63,7 @@ function progressKey(value){const raw=String(value??'').trim();if(/^\d+$/.test(r
 function validCurrency(x){return ['usd','cny'].includes(String(x||'').toLowerCase());}
 function quizAnswer(value){return String(value||'').trim().toLowerCase().replace(/\s+/g,'');}
 function quizExpected(task,id){const match=/(?:weekly-)?(?:fill|choice|response)-(\d+)$/.exec(String(id||'')),facts=task.quizFacts||[];return facts.length&&match?facts[Number(match[1])%facts.length].answer:task.answer;}
+function projectMentorReply(task,message){const value=String(message||'').toLowerCase();if(value.indexOf('目标')>=0||value.indexOf('用户')>=0)return '把目标写成“为谁解决什么问题，并交付什么可验证结果”。先删掉形容词，只保留对象、动作和验收标准。';if(value.indexOf('报错')>=0||value.indexOf('错误')>=0||value.indexOf('不会')>=0)return '先不要跳过。请把输入、预期输出和实际输出各写一行，再定位是哪一个环节发生了偏差。';if(value.indexOf('完成')>=0||value.indexOf('提交')>=0)return '提交前做一次最小验收：能运行、能复现、能说明今天的知识点在哪里发挥作用。';return '这个方向可以继续。把你的想法落到今天的产出上：'+(task.deliverable||task.practice||'完成一个可验证的小结果')+'。';}
 function logError(context,error){console.error(JSON.stringify({time:new Date().toISOString(),context,error:String(error.message||error)}));}
 function emailUnavailableReason(){
   if(EMAIL_PROVIDER==='smtp'&&(!SMTP_USER||!SMTP_PASS))return 'SMTP_USER 或 SMTP_PASS 未配置';
@@ -172,6 +173,23 @@ async function app(req,res){
   if(req.method==='GET'&&u.pathname==='/api/me')return send(res,200,{user:me.role==='admin'?me:publicUser(d.users[me.email]||me)});
   if(req.method==='GET'&&u.pathname==='/api/progress')return send(res,200,{progress:d.progress[me.email]||{}});
   if(req.method==='GET'&&u.pathname==='/api/quiz-results')return send(res,200,{results:d.quizResults[me.email]||{}});
+  if(req.method==='GET'&&u.pathname==='/api/project-workspace'){
+    const day=Number(u.searchParams.get('day'));
+    if(!Number.isInteger(day)||day<1||day>56)return send(res,400,{error:'课时必须是第 1-56 天'});
+    const task=d.tasks.find(item=>item.day===day),saved=d.projectWorkspaces[me.email]?.[String(day)]||{};
+    return send(res,200,{workspace:{messages:Array.isArray(saved.messages)?saved.messages:[],submissions:Array.isArray(saved.submissions)?saved.submissions:[],taskTitle:task?.title||''}});
+  }
+  if(req.method==='POST'&&u.pathname==='/api/project-workspace'){
+    const b=await readBody(req),day=Number(b.day),kind=String(b.kind||''),content=String(b.content||'').trim();
+    if(!Number.isInteger(day)||day<1||day>56)return send(res,400,{error:'课时必须是第 1-56 天'});
+    if(!['message','submission'].includes(kind))return send(res,400,{error:'工作台记录类型无效'});
+    const limit=kind==='message'?2000:5000;if(!content)return send(res,400,{error:kind==='message'?'消息不能为空':'请先写下本日产出'});if(content.length>limit)return send(res,400,{error:'提交内容过长'});
+    const task=d.tasks.find(item=>item.day===day);if(!task)return send(res,404,{error:'课程不存在'});
+    d.projectWorkspaces[me.email]??={};const key=String(day),record=d.projectWorkspaces[me.email][key]||{messages:[],submissions:[]};record.messages=Array.isArray(record.messages)?record.messages:[];record.submissions=Array.isArray(record.submissions)?record.submissions:[];
+    const createdAt=new Date().toISOString();
+    if(kind==='message'){record.messages.push({role:'you',text:content,createdAt});record.messages.push({role:'mentor',text:projectMentorReply(task,content),createdAt});record.messages=record.messages.slice(-20);}else{record.submissions.unshift({text:content,createdAt});record.submissions=record.submissions.slice(0,10);}
+    d.projectWorkspaces[me.email][key]=record;await save(d);return send(res,200,{workspace:record});
+  }
   if(req.method==='POST'&&u.pathname==='/api/quiz-results'){
     const b=await readBody(req),kind=b.kind==='weekly'?'weekly':'daily',period=Number(kind==='weekly'?b.week:b.day),paper=Array.isArray(b.answers)?b.answers:[],total=kind==='weekly'?21:100,typeTotals=kind==='weekly'?{fill:7,choice:7,response:7}:{fill:34,choice:33,response:33};
     if(!Number.isInteger(period)||(kind==='weekly'?(period<1||period>8):(period<1||period>56))||paper.length!==total)return send(res,400,{error:kind==='weekly'?'周练习必须提交完整的 21 道题':'试卷必须提交完整的 100 道题'});

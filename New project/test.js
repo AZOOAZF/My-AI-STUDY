@@ -199,6 +199,21 @@ test('daily courses expose a clear lesson plan and aligned quiz facts', async ()
   assert.match(page, /\.workspace-shell/);
 });
 
+test('project workspace persistence is authenticated and bounded', async () => {
+  await withServer(async base => {
+    const response = await fetch(base + '/api/project-workspace?day=0');
+    assert.equal(response.status, 401);
+  });
+  const server = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  const storage = fs.readFileSync(path.join(__dirname, 'storage.js'), 'utf8');
+  const app = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
+  assert.match(server, /api\/project-workspace/);
+  assert.match(server, /课时必须是第 1-56 天/);
+  assert.match(server, /content\.length>limit/);
+  assert.match(storage, /d\.projectWorkspaces \?\?=/);
+  assert.match(app, /projectWorkspace/);
+});
+
 test('app build includes installable PWA assets', () => {
   const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, 'manifest.webmanifest'), 'utf8'));
   const worker = fs.readFileSync(path.join(__dirname, 'service-worker.js'), 'utf8');

@@ -18,6 +18,7 @@
   var authChallenge = '';
   var passwordPromptSkipped = false;
   var passwordReturnToProfile = false;
+  var projectWorkspace = { day: 0, loaded: false, loadingDay: 0, messages: [], submissions: [] };
   var sceneMessageIndex = 0;
   var sceneMessages = ['先做出一个能运行的版本，再让它变得漂亮。', '今天的知识点，要在一个真实小项目里留下痕迹。', '把输入、实现和验收连起来，学习就有了方向。'];
 
@@ -135,6 +136,7 @@
   }
 
   function boot() {
+    projectWorkspace = { day: 0, loaded: false, loadingDay: 0, messages: [], submissions: [] };
     Promise.all([api('/api/me'), api('/api/tasks'), api('/api/progress'), api('/api/notes'), api('/api/forum'), api('/api/quiz-results')]).then(function (items) {
       me = items[0].user;
       tasks = items[1].tasks || [];
@@ -183,6 +185,11 @@
     } catch (error) { return []; }
   }
 
+  function workspaceRecord(task) {
+    if (projectWorkspace.loaded && projectWorkspace.day === task.day) return { messages: projectWorkspace.messages, submissions: projectWorkspace.submissions };
+    return { messages: projectMessages(task), submissions: projectSubmissions(task) };
+  }
+
   function mentorReply(task, message) {
     var value = String(message || '').toLowerCase();
     if (value.indexOf('目标') >= 0 || value.indexOf('用户') >= 0) return '把目标写成“为谁解决什么问题，并交付什么可验证结果”。先删掉形容词，只保留对象、动作和验收标准。';
@@ -192,14 +199,14 @@
   }
 
   function workspaceMessages(task) {
-    return projectMessages(task).map(function (item) {
+    return workspaceRecord(task).messages.map(function (item) {
       var mine = item.role === 'you';
       return '<div class="workspace-message ' + (mine ? 'mine' : 'mentor') + '"><div class="message-avatar">' + (mine ? '我' : '师') + '</div><div><span class="message-author">' + (mine ? '我的记录' : 'AI Bloom 导师') + '</span><p>' + esc(item.text) + '</p></div></div>';
     }).join('');
   }
 
   function workspaceSubmissions(task) {
-    var records = projectSubmissions(task);
+    var records = workspaceRecord(task).submissions;
     if (!records.length) return '<p class="workspace-empty">还没有提交记录。完成一个小结果就可以留下第一条证据。</p>';
     return records.slice(0, 4).map(function (item) { return '<div class="submission-record"><span>文本提交</span><b>' + esc(item.text.slice(0, 80)) + (item.text.length > 80 ? '…' : '') + '</b><small>' + esc(item.createdAt.replace('T', ' ').slice(0, 16)) + '</small></div>'; }).join('');
   }
@@ -231,6 +238,16 @@
     var record = progressFor(task);
     var workspace = '<div class="workspace-heading"><div><div class="eyebrow">PROJECT STUDIO · PROJECT WORKSPACE · 56 DAY LEARNING PATH · 第 ' + task.week + ' 周</div><h1>' + esc(project.title || '本周项目') + '</h1><p class="muted">把每日课程变成连续的项目成果：探索、实现、验证，再交付。</p></div><div class="workspace-heading-actions"><span class="workspace-status">' + done + '/' + tasks.length + ' 天完成</span><button class="btn ghost" onclick="logout()">退出</button></div></div><div class="stats course-stats"><div class="stat"><b>' + done + '</b><span>已完成</span></div><div class="stat"><b>' + Math.round(done / tasks.length * 100) + '%</b><span>总进度</span></div><div class="stat"><b>' + task.week + '/8</b><span>当前周</span></div></div><nav class="course-weeks" aria-label="课程周次">' + weekTabs + '</nav><div class="workspace-shell"><aside class="workspace-path"><div class="workspace-panel-label">项目路线</div><h2>' + esc(project.title || '本周项目') + '</h2><p>' + esc(project.brief || '') + '</p><div class="path-progress"><i style="width:' + Math.round(weekTasks.filter(function (item) { return progressFor(item).done; }).length / weekTasks.length * 100) + '%"></i></div><small>' + weekTasks.filter(function (item) { return progressFor(item).done; }).length + '/' + weekTasks.length + ' 个阶段已完成</small><div class="workspace-path-list">' + path + '</div></aside><section class="workspace-center"><div class="workspace-toolbar"><span class="workspace-breadcrumb">项目首页 <b>›</b> 第 ' + task.day + ' 天</span><span class="workspace-phase">' + esc(project.milestone || projectStageNames[(task.day - 1) % projectStageNames.length]) + '</span></div><div class="workspace-chat"><div class="workspace-chat-head"><div><b>AI Bloom 项目导师</b><span>围绕当前任务一起推进</span></div><span class="mentor-live"><i></i> 在线</span></div><div class="workspace-messages" id="workspaceMessages">' + workspaceMessages(task) + '</div><div class="workspace-compose"><textarea id="projectChatInput" rows="2" placeholder="告诉导师你的想法、卡点或下一步…" onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();sendProjectMessage(' + task.day + ')}"></textarea><button class="compose-send" onclick="sendProjectMessage(' + task.day + ')" title="发送消息">↑</button><small>Enter 发送 · Shift + Enter 换行</small></div></div><section class="workspace-lesson"><div><span class="workspace-kicker">当前课时 · 第 ' + task.day + ' 天</span><h2>' + esc(task.title) + '</h2><p>' + esc(task.description) + '</p></div><div class="lesson-time"><b>' + esc(task.minutes) + '</b><span>分钟</span></div><div class="workspace-agenda">' + (task.agenda || []).map(function (item, index) { return '<div><span>' + (index + 1) + '</span><b>' + esc(item.label) + '</b><small>' + esc(item.minutes) + ' 分钟</small></div>'; }).join('') + '</div></section></section><aside class="workspace-inspector"><div class="workspace-panel-label">当前任务</div><h2>' + esc(project.milestone || projectStageNames[(task.day - 1) % projectStageNames.length]) + '</h2><p>' + esc(project.goal || task.deliverable || '') + '</p><div class="inspector-block"><b>里程碑交付与验收</b><ul>' + acceptance + '</ul></div><div class="inspector-block"><b>完成后你将能够</b><ul>' + tips + '</ul></div><div class="artifact-form"><label for="projectArtifact">提交本日产出</label><textarea id="projectArtifact" rows="5" placeholder="粘贴文本、记录结果，或写下你完成了什么…"></textarea><button class="btn" onclick="submitProjectArtifact(' + task.day + ')">提交产出</button><span id="artifactMsg" class="form-error"></span></div><div class="submission-list"><b>已提交记录</b>' + workspaceSubmissions(task) + '</div><div class="workspace-actions"><a class="btn ghost" href="' + esc(task.resource) + '" target="_blank" rel="noopener">打开资料</a><button class="btn secondary" onclick="quizPage(' + task.day + ')">进入检测</button><button class="btn ' + (record.done ? 'ghost' : '') + '" onclick="toggle(' + task.day + ')">' + (record.done ? '撤销完成' : '完成本日阶段') + '</button></div></aside></div>';
     shell(workspace);
+    if (projectWorkspace.day !== task.day && projectWorkspace.loadingDay !== task.day) {
+      projectWorkspace.loadingDay = task.day;
+      api('/api/project-workspace?day=' + task.day).then(function (data) {
+        var saved = data.workspace || {};
+        projectWorkspace = { day: task.day, loaded: true, loadingDay: 0, messages: Array.isArray(saved.messages) && saved.messages.length ? saved.messages : projectMessages(task), submissions: Array.isArray(saved.submissions) ? saved.submissions : projectSubmissions(task) };
+        if (courseDay === task.day) coursePage(task.day);
+      }).catch(function () {
+        projectWorkspace = { day: task.day, loaded: true, loadingDay: 0, messages: projectMessages(task), submissions: projectSubmissions(task) };
+      });
+    }
   }
 
   function sendProjectMessage(day) {
@@ -238,11 +255,17 @@
     if (!text) return;
     var task = tasks.find(function (item) { return Number(item.day) === Number(day); });
     if (!task) return;
-    var messages = projectMessages(task);
-    messages.push({ role: 'you', text: text.slice(0, 2000) });
-    messages.push({ role: 'mentor', text: mentorReply(task, text) });
-    localStorage.setItem(projectChatKey(day), JSON.stringify(messages.slice(-20)));
-    coursePage(day);
+    api('/api/project-workspace', { method: 'POST', body: JSON.stringify({ day: Number(day), kind: 'message', content: text.slice(0, 2000) }) }).then(function (data) {
+      var saved = data.workspace || {};
+      projectWorkspace = { day: Number(day), loaded: true, loadingDay: 0, messages: saved.messages || [], submissions: saved.submissions || [] };
+      coursePage(day);
+    }).catch(function () {
+      var messages = projectMessages(task);
+      messages.push({ role: 'you', text: text.slice(0, 2000) });
+      messages.push({ role: 'mentor', text: mentorReply(task, text) });
+      try { localStorage.setItem(projectChatKey(day), JSON.stringify(messages.slice(-20))); } catch (error) { /* local fallback can be unavailable in private mode */ }
+      coursePage(day);
+    });
   }
 
   function submitProjectArtifact(day) {
@@ -250,10 +273,16 @@
     if (!text) { if (message) message.textContent = '请先写下本日产出'; return; }
     var task = tasks.find(function (item) { return Number(item.day) === Number(day); });
     if (!task) return;
-    var records = projectSubmissions(task);
-    records.unshift({ text: text.slice(0, 5000), createdAt: new Date().toISOString() });
-    localStorage.setItem(projectSubmissionKey(day), JSON.stringify(records.slice(0, 10)));
-    coursePage(day);
+    api('/api/project-workspace', { method: 'POST', body: JSON.stringify({ day: Number(day), kind: 'submission', content: text.slice(0, 5000) }) }).then(function (data) {
+      var saved = data.workspace || {};
+      projectWorkspace = { day: Number(day), loaded: true, loadingDay: 0, messages: saved.messages || [], submissions: saved.submissions || [] };
+      coursePage(day);
+    }).catch(function () {
+      var records = projectSubmissions(task);
+      records.unshift({ text: text.slice(0, 5000), createdAt: new Date().toISOString() });
+      try { localStorage.setItem(projectSubmissionKey(day), JSON.stringify(records.slice(0, 10))); } catch (error) { /* local fallback can be unavailable in private mode */ }
+      coursePage(day);
+    });
   }
 
   function passwordSetupPage(returnToProfile) {

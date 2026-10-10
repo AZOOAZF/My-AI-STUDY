@@ -98,6 +98,7 @@ function normalize(d, seedTasks) {
   d.authCodes ??= {};
   d.refreshTokens ??= {};
   d.quizResults ??= {};
+  d.projectWorkspaces ??= {};
   const savedTasks = Array.isArray(d.tasks) ? d.tasks : [];
   const canonicalTasks = seedTasks();
   const sourceTasks = canonicalTasks.length ? canonicalTasks : savedTasks;
