@@ -10,6 +10,7 @@
   var quizResults = {};
   var quizDay = Number(localStorage.getItem('bloom-quiz-day')) || 1;
   var courseDay = Number(localStorage.getItem('bloom-course-day')) || 0;
+  var courseMode = 'study';
   var quizMode = 'daily';
   var installPrompt;
   var tab = '课程学习';
@@ -222,6 +223,11 @@
     coursePage(courseDay);
   }
 
+  function setCourseMode(mode) {
+    courseMode = mode === 'project' ? 'project' : 'study';
+    coursePage(courseDay);
+  }
+
   function coursePage(day) {
     if (!tasks.length) return shell('<div class="empty">课程数据加载中...</div>');
     var next = tasks.find(function (item) { return !progressFor(item).done; }) || tasks[tasks.length - 1];
@@ -231,21 +237,30 @@
     var done = Object.values(progress).filter(function (item) { return item.done; }).length;
     var weekTasks = tasks.filter(function (item) { return item.week === task.week; });
     var project = task.project || {};
+    var record = progressFor(task);
     var weekTabs = [1,2,3,4,5,6,7,8].map(function (week) { var first = tasks.find(function (item) { return item.week === week; }); return '<button class="' + (week === task.week ? 'active' : '') + '" onclick="coursePage(' + first.day + ')">第 ' + week + ' 周</button>'; }).join('');
-    var path = weekTasks.map(function (item, index) { var record = progressFor(item); return '<button class="workspace-path-item ' + (item.day === task.day ? 'active' : '') + ' ' + (record.done ? 'done' : '') + '" onclick="coursePage(' + item.day + ')"><span class="path-number">' + (record.done ? '✓' : (index + 1)) + '</span><span><small>阶段 ' + (index + 1) + ' · 第 ' + item.day + ' 天</small><b>' + esc(item.title) + '</b></span><i>›</i></button>'; }).join('');
+    var modeTabs = '<div class="course-mode-tabs" role="tablist" aria-label="学习内容"><button role="tab" aria-selected="' + (courseMode === 'study') + '" class="' + (courseMode === 'study' ? 'active' : '') + '" onclick="setCourseMode(\'study\')">今日课程与计划</button><button role="tab" aria-selected="' + (courseMode === 'project') + '" class="' + (courseMode === 'project' ? 'active' : '') + '" onclick="setCourseMode(\'project\')">项目互动</button></div>';
+    var dayButtons = weekTasks.map(function (item, index) { var dayProgress = progressFor(item); return '<button class="course-day ' + (item.day === task.day ? 'active' : '') + '" onclick="coursePage(' + item.day + ')"><span>第 ' + item.day + ' 天 · 阶段 ' + (index + 1) + '</span><small>' + (dayProgress.done ? '已完成' : '待学习') + '</small><b>' + esc(item.title) + '</b></button>'; }).join('');
+    var outcomes = (task.outcomes || []).map(function (item) { return '<li>' + esc(item) + '</li>'; }).join('');
+    var agenda = (task.agenda || []).map(function (item, index) { return '<div class="agenda-step"><span>' + (index + 1) + '</span><div><b>' + esc(item.label) + ' · ' + esc(item.minutes) + ' 分钟</b><p>' + esc(item.detail) + '</p></div></div>'; }).join('');
+    var courseContent = '<div class="course-layout"><nav class="course-days" aria-label="本周每日课程">' + dayButtons + '</nav><article class="lesson-detail"><header class="lesson-head"><div><div class="eyebrow">第 ' + task.week + ' 周 · 第 ' + task.day + ' 天</div><h2>' + esc(task.title) + '</h2><p class="muted">' + esc(task.description) + '</p></div><div class="lesson-time"><b>' + esc(task.minutes) + '</b><span>分钟</span></div></header><section class="lesson-section"><h3>本节学习目标</h3><ul class="outcome-list">' + outcomes + '</ul></section><section class="lesson-section"><h3>今日学习计划</h3><div class="agenda-list">' + agenda + '</div></section><section class="lesson-section"><h3>今日项目实践 · ' + esc(project.milestone || projectStageNames[(task.day - 1) % projectStageNames.length]) + '</h3><div class="deliverable"><span>本周项目：' + esc(project.title || '学习项目') + '</span><b>' + esc(task.practice || task.deliverable || project.goal || '') + '</b><p>' + esc(project.goal || '') + '</p><button class="btn secondary" onclick="setCourseMode(\'project\')">进入导师互动与成果提交</button></div></section><section class="lesson-section"><h3>课程资料</h3><p class="muted">' + esc(task.source || '课程资料') + '</p><div class="lesson-actions"><a class="btn secondary" href="' + esc(task.resource || '#') + '" target="_blank" rel="noopener">打开学习资料</a><button class="btn ghost" onclick="quizPage(' + task.day + ')">进入本日检测</button><button class="btn ' + (record.done ? 'ghost' : '') + '" onclick="toggle(' + task.day + ')">' + (record.done ? '撤销完成' : '完成本日学习') + '</button></div></section></article></div>';
+    var path = weekTasks.map(function (item, index) { var dayProgress = progressFor(item); return '<button class="workspace-path-item ' + (item.day === task.day ? 'active' : '') + ' ' + (dayProgress.done ? 'done' : '') + '" onclick="coursePage(' + item.day + ')"><span class="path-number">' + (dayProgress.done ? '✓' : (index + 1)) + '</span><span><small>阶段 ' + (index + 1) + ' · 第 ' + item.day + ' 天</small><b>' + esc(item.title) + '</b></span><i>›</i></button>'; }).join('');
     var acceptance = (project.acceptance || []).map(function (item) { return '<li>' + esc(item) + '</li>'; }).join('');
     var tips = (task.outcomes || []).slice(0, 3).map(function (item) { return '<li>' + esc(item) + '</li>'; }).join('');
-    var record = progressFor(task);
-    var workspace = '<div class="workspace-heading"><div><div class="eyebrow">PROJECT STUDIO · PROJECT WORKSPACE · 56 DAY LEARNING PATH · 第 ' + task.week + ' 周</div><h1>' + esc(project.title || '本周项目') + '</h1><p class="muted">把每日课程变成连续的项目成果：探索、实现、验证，再交付。</p></div><div class="workspace-heading-actions"><span class="workspace-status">' + done + '/' + tasks.length + ' 天完成</span><button class="btn ghost" onclick="logout()">退出</button></div></div><div class="stats course-stats"><div class="stat"><b>' + done + '</b><span>已完成</span></div><div class="stat"><b>' + Math.round(done / tasks.length * 100) + '%</b><span>总进度</span></div><div class="stat"><b>' + task.week + '/8</b><span>当前周</span></div></div><nav class="course-weeks" aria-label="课程周次">' + weekTabs + '</nav><div class="workspace-shell"><aside class="workspace-path"><div class="workspace-panel-label">项目路线</div><h2>' + esc(project.title || '本周项目') + '</h2><p>' + esc(project.brief || '') + '</p><div class="path-progress"><i style="width:' + Math.round(weekTasks.filter(function (item) { return progressFor(item).done; }).length / weekTasks.length * 100) + '%"></i></div><small>' + weekTasks.filter(function (item) { return progressFor(item).done; }).length + '/' + weekTasks.length + ' 个阶段已完成</small><div class="workspace-path-list">' + path + '</div></aside><section class="workspace-center"><div class="workspace-toolbar"><span class="workspace-breadcrumb">项目首页 <b>›</b> 第 ' + task.day + ' 天</span><span class="workspace-phase">' + esc(project.milestone || projectStageNames[(task.day - 1) % projectStageNames.length]) + '</span></div><div class="workspace-chat"><div class="workspace-chat-head"><div><b>AI Bloom 项目导师</b><span>围绕当前任务一起推进</span></div><span class="mentor-live"><i></i> 在线</span></div><div class="workspace-messages" id="workspaceMessages">' + workspaceMessages(task) + '</div><div class="workspace-compose"><textarea id="projectChatInput" rows="2" placeholder="告诉导师你的想法、卡点或下一步…" onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();sendProjectMessage(' + task.day + ')}"></textarea><button class="compose-send" onclick="sendProjectMessage(' + task.day + ')" title="发送消息">↑</button><small>Enter 发送 · Shift + Enter 换行</small></div></div><section class="workspace-lesson"><div><span class="workspace-kicker">当前课时 · 第 ' + task.day + ' 天</span><h2>' + esc(task.title) + '</h2><p>' + esc(task.description) + '</p></div><div class="lesson-time"><b>' + esc(task.minutes) + '</b><span>分钟</span></div><div class="workspace-agenda">' + (task.agenda || []).map(function (item, index) { return '<div><span>' + (index + 1) + '</span><b>' + esc(item.label) + '</b><small>' + esc(item.minutes) + ' 分钟</small></div>'; }).join('') + '</div></section></section><aside class="workspace-inspector"><div class="workspace-panel-label">当前任务</div><h2>' + esc(project.milestone || projectStageNames[(task.day - 1) % projectStageNames.length]) + '</h2><p>' + esc(project.goal || task.deliverable || '') + '</p><div class="inspector-block"><b>里程碑交付与验收</b><ul>' + acceptance + '</ul></div><div class="inspector-block"><b>完成后你将能够</b><ul>' + tips + '</ul></div><div class="artifact-form"><label for="projectArtifact">提交本日产出</label><textarea id="projectArtifact" rows="5" placeholder="粘贴文本、记录结果，或写下你完成了什么…"></textarea><button class="btn" onclick="submitProjectArtifact(' + task.day + ')">提交产出</button><span id="artifactMsg" class="form-error"></span></div><div class="submission-list"><b>已提交记录</b>' + workspaceSubmissions(task) + '</div><div class="workspace-actions"><a class="btn ghost" href="' + esc(task.resource) + '" target="_blank" rel="noopener">打开资料</a><button class="btn secondary" onclick="quizPage(' + task.day + ')">进入检测</button><button class="btn ' + (record.done ? 'ghost' : '') + '" onclick="toggle(' + task.day + ')">' + (record.done ? '撤销完成' : '完成本日阶段') + '</button></div></aside></div>';
-    shell(workspace);
-    if (projectWorkspace.day !== task.day && projectWorkspace.loadingDay !== task.day) {
+    var projectContent = '<div class="workspace-shell"><aside class="workspace-path"><div class="workspace-panel-label">本周项目路线</div><h2>' + esc(project.title || '本周项目') + '</h2><p>' + esc(project.brief || '') + '</p><div class="path-progress"><i style="width:' + Math.round(weekTasks.filter(function (item) { return progressFor(item).done; }).length / weekTasks.length * 100) + '%"></i></div><small>' + weekTasks.filter(function (item) { return progressFor(item).done; }).length + '/' + weekTasks.length + ' 个阶段已完成</small><div class="workspace-path-list">' + path + '</div></aside><section class="workspace-center"><div class="workspace-toolbar"><span class="workspace-breadcrumb">项目首页 <b>›</b> 第 ' + task.day + ' 天</span><span class="workspace-phase">' + esc(project.milestone || projectStageNames[(task.day - 1) % projectStageNames.length]) + '</span></div><div class="workspace-chat"><div class="workspace-chat-head"><div><b>AI Bloom 项目导师</b><span>围绕今日学习目标推进本周项目</span></div><span class="mentor-live"><i></i> 在线</span></div><div class="workspace-messages" id="workspaceMessages">' + workspaceMessages(task) + '</div><div class="workspace-compose"><textarea id="projectChatInput" rows="2" placeholder="告诉导师你的想法、卡点或下一步…" onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();sendProjectMessage(' + task.day + ')}"></textarea><button class="compose-send" onclick="sendProjectMessage(' + task.day + ')" title="发送消息">↑</button><small>Enter 发送 · Shift + Enter 换行</small></div></div><div class="workspace-lesson"><div><span class="workspace-kicker">今日课程 · 第 ' + task.day + ' 天</span><h2>' + esc(task.title) + '</h2><p>' + esc(task.description) + '</p></div><div class="lesson-time"><b>' + esc(task.minutes) + '</b><span>分钟</span></div><div class="workspace-agenda">' + (task.agenda || []).map(function (item, index) { return '<div><span>' + (index + 1) + '</span><b>' + esc(item.label) + '</b><small>' + esc(item.minutes) + ' 分钟</small></div>'; }).join('') + '</div><button class="btn secondary" onclick="setCourseMode(\'study\')">返回课程与学习计划</button></div></section><aside class="workspace-inspector"><div class="workspace-panel-label">本日项目任务</div><h2>' + esc(project.milestone || projectStageNames[(task.day - 1) % projectStageNames.length]) + '</h2><p>' + esc(project.goal || task.deliverable || '') + '</p><div class="inspector-block"><b>里程碑交付与验收</b><ul>' + acceptance + '</ul></div><div class="inspector-block"><b>完成后你将能够</b><ul>' + tips + '</ul></div><div class="artifact-form"><label for="projectArtifact">提交本日产出</label><textarea id="projectArtifact" rows="5" placeholder="粘贴文本、记录结果，或写下你完成了什么…"></textarea><button class="btn" onclick="submitProjectArtifact(' + task.day + ')">提交产出</button><span id="artifactMsg" class="form-error"></span></div><div class="submission-list"><b>已提交记录</b>' + workspaceSubmissions(task) + '</div><div class="workspace-actions"><a class="btn ghost" href="' + esc(task.resource) + '" target="_blank" rel="noopener">打开资料</a><button class="btn secondary" onclick="quizPage(' + task.day + ')">进入检测</button><button class="btn ' + (record.done ? 'ghost' : '') + '" onclick="toggle(' + task.day + ')">' + (record.done ? '撤销完成' : '完成本日阶段') + '</button></div></aside></div>';
+    var content = '<div class="course-page-head"><div><div class="eyebrow">56 天课程路径 · 第 ' + task.week + ' 周</div><h1>第 ' + task.week + ' 周学习计划</h1><p class="muted">本周项目：' + esc(project.title || 'AI 学习项目') + ' · ' + esc(project.brief || '') + '</p></div><div class="workspace-heading-actions"><span class="workspace-status">' + done + '/' + tasks.length + ' 天完成</span><button class="btn ghost" onclick="logout()">退出</button></div></div><div class="stats course-stats"><div class="stat"><b>' + done + '</b><span>已完成</span></div><div class="stat"><b>' + Math.round(done / tasks.length * 100) + '%</b><span>总进度</span></div><div class="stat"><b>' + task.week + '/8</b><span>当前周</span></div></div><nav class="course-weeks" aria-label="课程周次">' + weekTabs + '</nav>' + modeTabs + (courseMode === 'project' ? projectContent : courseContent);
+    shell(content);
+    if (courseMode === 'project' && projectWorkspace.day !== task.day && projectWorkspace.loadingDay !== task.day) {
       projectWorkspace.loadingDay = task.day;
       api('/api/project-workspace?day=' + task.day).then(function (data) {
+        if (courseDay !== task.day || courseMode !== 'project') { if (projectWorkspace.loadingDay === task.day) projectWorkspace.loadingDay = 0; return; }
         var saved = data.workspace || {};
         projectWorkspace = { day: task.day, loaded: true, loadingDay: 0, messages: Array.isArray(saved.messages) && saved.messages.length ? saved.messages : projectMessages(task), submissions: Array.isArray(saved.submissions) ? saved.submissions : projectSubmissions(task) };
-        if (courseDay === task.day) coursePage(task.day);
+        coursePage(task.day);
       }).catch(function () {
+        if (courseDay !== task.day || courseMode !== 'project') { if (projectWorkspace.loadingDay === task.day) projectWorkspace.loadingDay = 0; return; }
         projectWorkspace = { day: task.day, loaded: true, loadingDay: 0, messages: projectMessages(task), submissions: projectSubmissions(task) };
+        coursePage(task.day);
       });
     }
   }
@@ -258,13 +273,13 @@
     api('/api/project-workspace', { method: 'POST', body: JSON.stringify({ day: Number(day), kind: 'message', content: text.slice(0, 2000) }) }).then(function (data) {
       var saved = data.workspace || {};
       projectWorkspace = { day: Number(day), loaded: true, loadingDay: 0, messages: saved.messages || [], submissions: saved.submissions || [] };
-      coursePage(day);
+      if (courseDay === Number(day) && courseMode === 'project') coursePage(day);
     }).catch(function () {
       var messages = projectMessages(task);
       messages.push({ role: 'you', text: text.slice(0, 2000) });
       messages.push({ role: 'mentor', text: mentorReply(task, text) });
       try { localStorage.setItem(projectChatKey(day), JSON.stringify(messages.slice(-20))); } catch (error) { /* local fallback can be unavailable in private mode */ }
-      coursePage(day);
+      if (courseDay === Number(day) && courseMode === 'project') coursePage(day);
     });
   }
 
@@ -276,12 +291,12 @@
     api('/api/project-workspace', { method: 'POST', body: JSON.stringify({ day: Number(day), kind: 'submission', content: text.slice(0, 5000) }) }).then(function (data) {
       var saved = data.workspace || {};
       projectWorkspace = { day: Number(day), loaded: true, loadingDay: 0, messages: saved.messages || [], submissions: saved.submissions || [] };
-      coursePage(day);
+      if (courseDay === Number(day) && courseMode === 'project') coursePage(day);
     }).catch(function () {
       var records = projectSubmissions(task);
       records.unshift({ text: text.slice(0, 5000), createdAt: new Date().toISOString() });
       try { localStorage.setItem(projectSubmissionKey(day), JSON.stringify(records.slice(0, 10))); } catch (error) { /* local fallback can be unavailable in private mode */ }
-      coursePage(day);
+      if (courseDay === Number(day) && courseMode === 'project') coursePage(day);
     });
   }
 
@@ -480,6 +495,7 @@
   window.saveProfile = saveProfile;
   window.switchTab = switchTab;
   window.coursePage = coursePage;
+  window.setCourseMode = setCourseMode;
   window.sendProjectMessage = sendProjectMessage;
   window.submitProjectArtifact = submitProjectArtifact;
   window.installApp = installApp;
